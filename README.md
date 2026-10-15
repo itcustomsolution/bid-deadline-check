@@ -56,6 +56,8 @@ rows = report.checklist()   # list of dicts: id, category, item, line, done
 - It finds what is written; it does not interpret it. Always read the solicitation and every amendment yourself. This is a checklist aid, not legal or contracting advice.
 - Scanned PDFs without a text layer return no text. Run OCR first.
 - Dates are reported as written; no timezone conversion.
+- Inputs over 50 MB are refused. PDF parsing relies on pypdf (>= 6.19, which fixes known resource-exhaustion bugs); only open solicitations from sources you trust.
+- CSV output prefixes cells that start with `=`, `+`, `-` or `@` with `'` so spreadsheet apps do not run them as formulas.
 - Out of scope: scoring, bid/no-bid, writing proposal content.
 
 ## Development

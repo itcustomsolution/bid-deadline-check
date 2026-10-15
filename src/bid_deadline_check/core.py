@@ -48,7 +48,10 @@ FORMAT_RULES = [
     ("file_format", r"\b(?:PDF|\.pdf|Microsoft Word|\.docx?|Excel|\.xlsx)\b(?:\s+format)?"),
     ("spacing", r"(?:single|double|1\.5)[- ]spaced"),
 ]
-SHALL = re.compile(r"[^.;\n]*\b(?:shall|must|is required to|are required to)\b[^.;\n]*[.;]?", re.I)
+SHALL = re.compile(r"[^.;\n]*\b(?:shall|must|is required to|are required to)\b[^.;\n]*[.;]?", re.I)  # reference only
+SHALL_WORD = re.compile(r"\b(?:shall|must|is required to|are required to)\b", re.I)
+SENTENCE_SPLIT = re.compile(r"(?<=[.;])")
+SUBJECT_WINDOW = 2000  # bound the lazy subject regex so a huge line cannot go quadratic
 
 NUMWORDS = {w: i for i, w in enumerate(
     "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
@@ -109,8 +112,13 @@ class Report:
         return rows
 
 
+MAX_INPUT_BYTES = 50 * 1024 * 1024
+
+
 def read_document(path: str | Path) -> str:
     p = Path(path)
+    if p.stat().st_size > MAX_INPUT_BYTES:
+        raise SystemExit(f"{p} is larger than {MAX_INPUT_BYTES // (1024 * 1024)} MB; refusing to parse it.")
     if p.suffix.lower() == ".pdf":
         try:
             from pypdf import PdfReader
@@ -179,7 +187,7 @@ def analyze(text: str) -> Report:
             for m in re.finditer(pat, line, re.I):
                 n = _num(m.group(1))
                 if n:
-                    subj = re.search(r"(Volume\s+[IVX\d]+[^,.;]*?|Technical[^,.;]*?|Past Performance[^,.;]*?|Management[^,.;]*?|Price[^,.;]*?|Cost[^,.;]*?|White paper|Executive Summary|proposal|response|quote)\s+(?:shall|must|will|is|are|limited|\()", line, re.I)
+                    subj = re.search(r"(Volume\s+[IVX\d]+[^,.;]*?|Technical[^,.;]*?|Past Performance[^,.;]*?|Management[^,.;]*?|Price[^,.;]*?|Cost[^,.;]*?|White paper|Executive Summary|proposal|response|quote)\s+(?:shall|must|will|is|are|limited|\()", line[:SUBJECT_WINDOW], re.I)
                     r.page_limits.append(PageLimit(n, _norm_ws(subj.group(1)) if subj else "unspecified", i, line[:240]))
 
         for name, pat in FORMAT_RULES:
@@ -192,8 +200,11 @@ def analyze(text: str) -> Report:
         r.volumes += [_norm_ws(m.group(0)) for m in re.finditer(VOLUME, line)]
 
     for i, raw in enumerate(lines, 1):
-        for m in SHALL.finditer(raw):
-            s = _norm_ws(m.group(0))
+        # Split into sentences first: applying SHALL directly to a long unpunctuated line is O(n^2).
+        for seg in SENTENCE_SPLIT.split(raw):
+            if not SHALL_WORD.search(seg):
+                continue
+            s = _norm_ws(seg)
             if len(s) > 25 and re.search(r"\b(offeror|contractor|quoter|vendor|proposal|response|submission|bidder)", s, re.I):
                 r.requirements.append({"text": s[:300], "line": i})
 
