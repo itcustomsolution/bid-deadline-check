@@ -94,3 +94,10 @@ def test_pdf(tmp_path):
         w.write(fh)
     from bid_deadline_check import read_document
     assert read_document(f).strip() == ""
+
+
+def test_dash_page_limit_and_application_due_with_label_above():
+    from bid_deadline_check import analyze
+    r = analyze("• Page Limit – Technical Proposal: 20 pages\nApplications must be received no later than\n30 October 2026 at 5:00 PM Eastern Time\n")
+    assert [p.pages for p in r.page_limits] == [20]
+    assert any(d.kind == "proposal_due" and d.timezone for d in r.deadlines)

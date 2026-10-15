@@ -22,7 +22,7 @@ DEADLINE_KINDS = [
     ("intent_to_bid", r"intent to (?:bid|propose)|notice of intent"),
     ("orals", r"oral presentation"),
     ("questions_due", r"question|inquir|clarification|RFI response"),
-    ("proposal_due", r"proposal|quote|quotation|offer|bid|response|submission|closing|due date"),
+    ("proposal_due", r"proposal|quote|quotation|offer|bid|response|submission|application|closing|due date"),
 ]
 
 FORMS = [
@@ -39,6 +39,7 @@ PAGE_LIMIT = [
     r"(?:limited|limit)\s+to\s+(\w+(?:\s*\(\d+\))?)\s+(?:\(\d+\)\s+)?pages?",
     r"(?:maximum|max\.?)\s+(?:of\s+)?(\w+(?:\s*\(\d+\))?)\s+(?:\(\d+\)\s+)?pages?",
     r"(\d+)[- ]page\s+(?:limit|maximum)",
+    r"page\s+limit(?:s|ation)?\s*[\u2013\u2014:-]\s*(?:[^:]{0,60}:\s*)?(\w+(?:\s*\(\d+\))?)\s+(?:\(\d+\)\s+)?pages?",
 ]
 FORMAT_RULES = [
     ("font", r"(?:\d{1,2}[- ]?(?:point|pt)\b[^.\n]{0,40}font|font[^.\n]{0,40}\d{1,2}[- ]?(?:point|pt)\b|Times New Roman|Arial|Calibri)"),
@@ -115,7 +116,10 @@ def read_document(path: str | Path) -> str:
             from pypdf import PdfReader
         except ImportError as e:  # pragma: no cover
             raise SystemExit("PDF input needs pypdf: pip install 'bid-deadline-check[pdf]'") from e
-        return "\n".join((pg.extract_text() or "") for pg in PdfReader(str(p)).pages)
+        try:
+            return "\n".join((pg.extract_text() or "") for pg in PdfReader(str(p)).pages)
+        except Exception as e:
+            raise SystemExit(f"Could not read {p} as a PDF ({e}). Is it really a PDF? Some sites return an HTML page instead.") from e
     return p.read_text(encoding="utf-8", errors="replace")
 
 
@@ -156,9 +160,11 @@ def analyze(text: str) -> Report:
             continue
 
         dm = date_re.search(line)
-        if dm and re.search(r"due|deadline|no later than|NLT|submit|received by|closing|close|by\s", line, re.I):
+        # PDF tables often put the label on the line above the date
+        prev = _norm_ws(lines[i - 2]) if i > 1 and not date_re.search(lines[i - 2]) else ""
+        if dm and re.search(r"due|deadline|no later than|NLT|submit|received|closing|close|by\s", prev + " " + line, re.I):
             kind = "other"
-            pre = line[: dm.start()] + " " + line
+            pre = prev + " " + line[: dm.start()] + " " + line
             for k, pat in DEADLINE_KINDS:
                 if re.search(pat, pre, re.I):
                     kind = k
