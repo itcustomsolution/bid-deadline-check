@@ -1,0 +1,21 @@
+SOLICITATION NO. EXAMPLE-26-R-0001 (SYNTHETIC SAMPLE)
+Agency: Example Federal Agency, Office of Acquisition
+Standard Form SF-1449 applies. Offerors shall sign and return SF 1449 and acknowledge all amendments on SF-30.
+
+SECTION L - INSTRUCTIONS TO OFFERORS
+L.1 Questions regarding this solicitation are due no later than October 20, 2026 at 2:00 PM Eastern Time.
+L.2 Proposals are due by 11:00 AM EDT on November 5, 2026. Late proposals will not be considered.
+L.3 A pre-proposal conference (site visit) will be held 10/27/2026 at 10:00 AM local time; registration is due by 10/23/2026.
+L.4 The proposal shall consist of the following volumes:
+  Volume I - Technical
+  Volume II - Past Performance
+  Volume III - Price
+L.5 Volume I Technical shall not exceed twenty (20) pages.
+L.6 Volume II Past Performance is limited to 10 pages.
+L.7 Pages shall be 8.5 x 11 inches with 1-inch margins. Text shall use 12-point Times New Roman font, single-spaced.
+L.8 Proposals must be submitted in PDF format by email.
+L.9 The Offeror shall include its UEI and CAGE code on the cover page.
+L.10 The Offeror shall complete the representations at FAR 52.212-3 and DFARS 252.204-7012 applies.
+
+SECTION M - EVALUATION FACTORS
+The Government will evaluate proposals in accordance with Section M.

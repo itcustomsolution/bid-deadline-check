@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bid-deadline-check"
+version = "0.1.0"
+description = "Extract deadlines (with timezone), page limits, forms and a compliance checklist from government solicitations. Rule-based, local, no LLM."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [{ name = "IT Custom Solution" }]
+keywords = ["govcon", "rfp", "solicitation", "proposal", "compliance", "deadline", "sam.gov"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Topic :: Office/Business",
+  "Environment :: Console",
+]
+dependencies = []
+
+[project.optional-dependencies]
+pdf = ["pypdf>=4"]
+dev = ["pytest>=7", "pypdf>=4"]
+
+[project.scripts]
+bid-deadline-check = "bid_deadline_check.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/itcustomsolution/bid-deadline-check"
+Issues = "https://github.com/itcustomsolution/bid-deadline-check/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bid_deadline_check"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

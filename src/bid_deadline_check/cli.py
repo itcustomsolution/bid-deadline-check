@@ -1,0 +1,59 @@
+"""Command line: bid-deadline-check FILE [--format text|json|csv|md]."""
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import sys
+
+from . import __version__
+from .core import analyze, read_document
+
+
+def render_text(rep) -> str:
+    out = ["DEADLINES"]
+    out += [f"  [{d.kind}] {d.date} {d.time or '(no time)'} {d.timezone or '(no timezone)'}  (line {d.line})" for d in rep.deadlines] or ["  none found"]
+    out.append("PAGE LIMITS")
+    out += [f"  {p.applies_to}: {p.pages} pages  (line {p.line})" for p in rep.page_limits] or ["  none found"]
+    out.append("FORMAT RULES")
+    out += [f"  {f['rule']}: {f['text']}  (line {f['line']})" for f in rep.format_rules] or ["  none found"]
+    out.append("FORMS / CLAUSES: " + (", ".join(rep.forms) or "none found"))
+    out.append("SECTIONS: " + (", ".join(rep.sections) or "none found"))
+    out.append("VOLUMES: " + (", ".join(rep.volumes) or "none found"))
+    out.append(f"REQUIREMENTS (shall/must): {len(rep.requirements)}")
+    if rep.warnings:
+        out.append("WARNINGS")
+        out += [f"  ! {w}" for w in rep.warnings]
+    return "\n".join(out)
+
+
+def render_md(rep) -> str:
+    rows = ["| ID | Category | Item | Line | Done |", "|---|---|---|---|---|"]
+    rows += [f"| {c['id']} | {c['category']} | {c['item'].replace('|', '/')} | {c['line'] or ''} | [ ] |" for c in rep.checklist()]
+    return "# Compliance checklist\n\n" + "\n".join(rows) + "\n"
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(prog="bid-deadline-check", description="Extract deadlines, page limits, forms and a compliance checklist from a solicitation (PDF or text).")
+    ap.add_argument("file", help="solicitation .pdf or .txt/.md ('-' for stdin)")
+    ap.add_argument("--format", "-f", choices=["text", "json", "csv", "md"], default="text")
+    ap.add_argument("--strict", action="store_true", help="exit 2 if any warnings (useful in scripts)")
+    ap.add_argument("--version", action="version", version=__version__)
+    a = ap.parse_args(argv)
+    text = sys.stdin.read() if a.file == "-" else read_document(a.file)
+    rep = analyze(text)
+    if a.format == "json":
+        print(json.dumps({**rep.to_dict(), "checklist": rep.checklist()}, indent=2))
+    elif a.format == "csv":
+        w = csv.DictWriter(sys.stdout, fieldnames=["id", "category", "item", "line", "done"])
+        w.writeheader()
+        w.writerows(rep.checklist())
+    elif a.format == "md":
+        print(render_md(rep))
+    else:
+        print(render_text(rep))
+    return 2 if a.strict and rep.warnings else 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    sys.exit(main())
