@@ -27,9 +27,19 @@ def render_text(rep) -> str:
     return "\n".join(out)
 
 
+_FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+
+
+def csv_safe(value):
+    """Neutralize spreadsheet formula injection (CWE-1236): solicitation text is untrusted."""
+    if isinstance(value, str) and value.startswith(_FORMULA_START):
+        return "'" + value
+    return value
+
+
 def render_md(rep) -> str:
     rows = ["| ID | Category | Item | Line | Done |", "|---|---|---|---|---|"]
-    rows += [f"| {c['id']} | {c['category']} | {c['item'].replace('|', '/')} | {c['line'] or ''} | [ ] |" for c in rep.checklist()]
+    rows += [f"| {c['id']} | {c['category']} | {c['item'].replace('|', '/').replace('<', '&lt;').replace('>', '&gt;')} | {c['line'] or ''} | [ ] |" for c in rep.checklist()]
     return "# Compliance checklist\n\n" + "\n".join(rows) + "\n"
 
 
@@ -47,7 +57,7 @@ def main(argv=None) -> int:
     elif a.format == "csv":
         w = csv.DictWriter(sys.stdout, fieldnames=["id", "category", "item", "line", "done"])
         w.writeheader()
-        w.writerows(rep.checklist())
+        w.writerows({k: csv_safe(v) for k, v in row.items()} for row in rep.checklist())
     elif a.format == "md":
         print(render_md(rep))
     else:
