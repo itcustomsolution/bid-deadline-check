@@ -7,7 +7,7 @@ import json
 import sys
 
 from . import __version__
-from .core import analyze, read_document
+from .core import analyze, read_document, read_stdin_bounded
 
 
 def render_text(rep) -> str:
@@ -50,7 +50,7 @@ def main(argv=None) -> int:
     ap.add_argument("--strict", action="store_true", help="exit 2 if any warnings (useful in scripts)")
     ap.add_argument("--version", action="version", version=__version__)
     a = ap.parse_args(argv)
-    text = sys.stdin.read() if a.file == "-" else read_document(a.file)
+    text = read_stdin_bounded(getattr(sys.stdin, "buffer", sys.stdin)) if a.file == "-" else read_document(a.file)
     rep = analyze(text)
     if a.format == "json":
         print(json.dumps({**rep.to_dict(), "checklist": rep.checklist()}, indent=2))
