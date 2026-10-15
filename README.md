@@ -16,8 +16,7 @@ It is deterministic: regex and rules only. No LLM, no network, nothing leaves yo
 ## Quickstart
 
 ```bash
-pip install "git+https://github.com/itcustomsolution/bid-deadline-check#egg=bid-deadline-check[pdf]"
-# Not published on PyPI yet; install from GitHub as above.
+pip install "bid-deadline-check[pdf]"
 
 bid-deadline-check solicitation.pdf
 bid-deadline-check solicitation.pdf -f csv > compliance-matrix.csv
