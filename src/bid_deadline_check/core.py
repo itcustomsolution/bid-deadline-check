@@ -35,11 +35,11 @@ FORMS = [
 SECTION = r"\b(?:Section|SECTION)\s+([A-M])\b"
 VOLUME = r"\bVolume\s+(?:[IVX]+|\d+)\b(?:\s*[-–:(]\s*([A-Z][A-Za-z /&]{2,40}))?"
 PAGE_LIMIT = [
-    r"(?:shall|must|will)\s+not\s+exceed\s+(\w+(?:\s*\(\d+\))?)\s+(?:\(\d+\)\s+)?pages?",
-    r"(?:limited|limit)\s+to\s+(\w+(?:\s*\(\d+\))?)\s+(?:\(\d+\)\s+)?pages?",
-    r"(?:maximum|max\.?)\s+(?:of\s+)?(\w+(?:\s*\(\d+\))?)\s+(?:\(\d+\)\s+)?pages?",
-    r"(\d+)[- ]page\s+(?:limit|maximum)",
-    r"page\s+limit(?:s|ation)?\s*[\u2013\u2014:-]\s*(?:[^:]{0,60}:\s*)?(\w+(?:\s*\(\d+\))?)\s+(?:\(\d+\)\s+)?pages?",
+    r"(?:shall|must|will)\s+not\s+exceed\s+(\w{1,20}(?:\s*\(\d+\))?)\s+(?:\(\d+\)\s+)?pages?",
+    r"(?:limited|limit)\s+to\s+(\w{1,20}(?:\s*\(\d+\))?)\s+(?:\(\d+\)\s+)?pages?",
+    r"(?:maximum|max\.?)\s+(?:of\s+)?(\w{1,20}(?:\s*\(\d+\))?)\s+(?:\(\d+\)\s+)?pages?",
+    r"(?<!\d)(\d{1,4})[- ]page\s+(?:limit|maximum)",  # bounded + left-anchored: no O(n^2) on digit runs
+    r"page\s+limit(?:s|ation)?\s*[\u2013\u2014:-]\s*(?:[^:]{0,60}:\s*)?(\w{1,20}(?:\s*\(\d+\))?)\s+(?:\(\d+\)\s+)?pages?",
 ]
 FORMAT_RULES = [
     ("font", r"(?:\d{1,2}[- ]?(?:point|pt)\b[^.\n]{0,40}font|font[^.\n]{0,40}\d{1,2}[- ]?(?:point|pt)\b|Times New Roman|Arial|Calibri)"),
@@ -50,8 +50,26 @@ FORMAT_RULES = [
 ]
 SHALL = re.compile(r"[^.;\n]*\b(?:shall|must|is required to|are required to)\b[^.;\n]*[.;]?", re.I)  # reference only
 SHALL_WORD = re.compile(r"\b(?:shall|must|is required to|are required to)\b", re.I)
-SENTENCE_SPLIT = re.compile(r"(?<=[.;])")
-SUBJECT_WINDOW = 2000  # bound the lazy subject regex so a huge line cannot go quadratic
+SENTENCE_END = re.compile(r"[.;]")
+MAX_SENTENCE = 2000   # requirement sentences longer than this are scanned only in their first MAX_SENTENCE chars
+SUBJECT_BEFORE = 200  # page-limit subject is looked up in a window around the match
+SUBJECT_AFTER = 60
+MAX_INPUT_BYTES = 50 * 1024 * 1024
+MAX_TEXT_CHARS = 5_000_000
+MAX_PDF_PAGES = 1000
+PDF_TIME_BUDGET_S = 60.0
+SUBJECT_RE = re.compile(r"(Volume\s+[IVX\d]{1,6}[^,.;]{0,60}?|Technical[^,.;]{0,60}?|Past Performance[^,.;]{0,60}?|Management[^,.;]{0,60}?|Price[^,.;]{0,60}?|Cost[^,.;]{0,60}?|White paper|Executive Summary|proposal|response|quote)\s+(?:shall|must|will|is|are|limited|\()", re.I)
+
+
+def iter_sentences(line: str):
+    """Yield sentences ending in '.' or ';' (delimiter kept). Single left-to-right pass, O(n)."""
+    pos = 0
+    n = len(line)
+    while pos < n:
+        m = SENTENCE_END.search(line, pos)
+        end = m.end() if m else n
+        yield line[pos:end]
+        pos = end
 
 NUMWORDS = {w: i for i, w in enumerate(
     "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
@@ -112,9 +130,6 @@ class Report:
         return rows
 
 
-MAX_INPUT_BYTES = 50 * 1024 * 1024
-
-
 def read_document(path: str | Path) -> str:
     p = Path(path)
     if p.stat().st_size > MAX_INPUT_BYTES:
@@ -125,10 +140,41 @@ def read_document(path: str | Path) -> str:
         except ImportError as e:  # pragma: no cover
             raise SystemExit("PDF input needs pypdf: pip install 'bid-deadline-check[pdf]'") from e
         try:
-            return "\n".join((pg.extract_text() or "") for pg in PdfReader(str(p)).pages)
+            return _bounded_pdf_text(PdfReader(str(p)))
+        except PdfLimitError:
+            raise
         except Exception as e:
             raise SystemExit(f"Could not read {p} as a PDF ({e}). Is it really a PDF? Some sites return an HTML page instead.") from e
     return p.read_text(encoding="utf-8", errors="replace")
+
+
+class PdfLimitError(SystemExit):
+    pass
+
+
+def _bounded_pdf_text(reader) -> str:
+    """Extract text with page, size and wall-clock limits (checked between pages)."""
+    import time
+    start = time.monotonic()
+    if len(reader.pages) > MAX_PDF_PAGES:
+        raise PdfLimitError(f"PDF has {len(reader.pages)} pages; limit is {MAX_PDF_PAGES}.")
+    parts, total = [], 0
+    for pg in reader.pages:
+        if time.monotonic() - start > PDF_TIME_BUDGET_S:
+            raise PdfLimitError(f"PDF text extraction exceeded {PDF_TIME_BUDGET_S:.0f}s.")
+        t = pg.extract_text() or ""
+        total += len(t) + 1
+        if total > MAX_TEXT_CHARS:
+            raise PdfLimitError(f"PDF text exceeds {MAX_TEXT_CHARS} characters.")
+        parts.append(t)
+    return "\n".join(parts)
+
+
+def read_stdin_bounded(stream) -> str:
+    data = stream.read(MAX_INPUT_BYTES + 1)
+    if len(data) > MAX_INPUT_BYTES:
+        raise SystemExit(f"stdin is larger than {MAX_INPUT_BYTES // (1024 * 1024)} MB; refusing to parse it.")
+    return data.decode("utf-8", errors="replace") if isinstance(data, bytes) else data
 
 
 def _num(tok: str) -> int | None:
@@ -187,7 +233,8 @@ def analyze(text: str) -> Report:
             for m in re.finditer(pat, line, re.I):
                 n = _num(m.group(1))
                 if n:
-                    subj = re.search(r"(Volume\s+[IVX\d]+[^,.;]*?|Technical[^,.;]*?|Past Performance[^,.;]*?|Management[^,.;]*?|Price[^,.;]*?|Cost[^,.;]*?|White paper|Executive Summary|proposal|response|quote)\s+(?:shall|must|will|is|are|limited|\()", line[:SUBJECT_WINDOW], re.I)
+                    window = line[max(0, m.start() - SUBJECT_BEFORE): m.end() + SUBJECT_AFTER]
+                    subj = SUBJECT_RE.search(window)
                     r.page_limits.append(PageLimit(n, _norm_ws(subj.group(1)) if subj else "unspecified", i, line[:240]))
 
         for name, pat in FORMAT_RULES:
@@ -201,7 +248,8 @@ def analyze(text: str) -> Report:
 
     for i, raw in enumerate(lines, 1):
         # Split into sentences first: applying SHALL directly to a long unpunctuated line is O(n^2).
-        for seg in SENTENCE_SPLIT.split(raw):
+        for seg in iter_sentences(raw):
+            seg = seg[:MAX_SENTENCE]
             if not SHALL_WORD.search(seg):
                 continue
             s = _norm_ws(seg)

@@ -17,7 +17,7 @@ It is deterministic: regex and rules only. No LLM, no network, nothing leaves yo
 
 ```bash
 pip install "git+https://github.com/itcustomsolution/bid-deadline-check#egg=bid-deadline-check[pdf]"
-# (PyPI release coming soon: pip install "bid-deadline-check[pdf]")
+# Not published on PyPI yet; install from GitHub as above.
 
 bid-deadline-check solicitation.pdf
 bid-deadline-check solicitation.pdf -f csv > compliance-matrix.csv
@@ -56,8 +56,8 @@ rows = report.checklist()   # list of dicts: id, category, item, line, done
 - It finds what is written; it does not interpret it. Always read the solicitation and every amendment yourself. This is a checklist aid, not legal or contracting advice.
 - Scanned PDFs without a text layer return no text. Run OCR first.
 - Dates are reported as written; no timezone conversion.
-- Inputs over 50 MB are refused. PDF parsing relies on pypdf (>= 6.19, which fixes known resource-exhaustion bugs); only open solicitations from sources you trust.
-- CSV output prefixes cells that start with `=`, `+`, `-` or `@` with `'` so spreadsheet apps do not run them as formulas.
+- Limits: files and stdin over 50 MB are refused; PDFs over 1000 pages, over 5 million extracted characters, or over 60 s of extraction (checked between pages) are refused. PDF parsing relies on pypdf >= 6.19. A single slow page can still exceed the time budget, so only open solicitations from sources you trust.
+- CSV output prefixes cells that start with `=`, `+`, `-`, `@`, tab or CR with `'`. This is a common mitigation for formula injection; it is not tested against any particular spreadsheet application.
 - Out of scope: scoring, bid/no-bid, writing proposal content.
 
 ## Development
