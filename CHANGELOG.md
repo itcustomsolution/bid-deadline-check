@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0rc4 (unreleased candidate, 2026-10-17; not published; 0.2.0rc1 of 2026-10-16, 0.2.0rc2 and 0.2.0rc3 of 2026-10-17 were the independently audited candidates)
+## 0.2.0rc5 (unreleased candidate, 2026-10-17; not published; 0.2.0rc1 of 2026-10-16 and 0.2.0rc2 to 0.2.0rc4 of 2026-10-17 were the independently audited candidates)
 
 **Breaking:** deadline extraction output changes (more deadlines, new kinds `registration` and
 `revised_proposal_due`, new `Deadline.end_line` and `Deadline.ambiguities`, `text` is now the clause around the
@@ -99,3 +99,11 @@ later is required, and the PDF extra needs pypdf 6.21.1 or later.
   provided, shared and faxed, in the past passive only) flags `issue_date_possible` (R3-DL-2); a zone followed by a letter,
   digit or `_` (`17:00:00Zdraft`, `UTC+05:30junk`) is flagged with the new code `timezone_glued_to_text`
   (R3-DL-3). A test fixture now uses a synthetic address.
+- r4 audit fixes (2026-10-17): a day-first ordinal date is checked against the calendar ("31st February 2026" is
+  `invalid_date`), and an extracted date that cannot be checked fails closed (R4-DL-1); more malformed forms of the
+  supported dates are reported as date-like values (`2026-11-005`, `20260-11-05`, `2026/11/12`, `12.11.2026`,
+  `11/12/2026/2027`, `November 12, 26`, `November, 12, 2026`) (R4-DL-2); a UTC/GMT or ISO offset followed by a
+  fraction is flagged `timezone_unclear` instead of being shortened (R4-DL-3). The pdf and dev extras need pypdf
+  6.21.1 or later, the first release with the fix for GHSA-5hx5-vpf9-5wcv; this tool's text path does not reach the
+  affected image conversion (R4-SC-01). README says only the first zone written for a time is read and that
+  `--strict` is an extraction aid, not a safety gate.
