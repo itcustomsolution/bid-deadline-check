@@ -777,8 +777,9 @@ DURATION_HOURS = re.compile(r"\d{3}\s*(?:hours|hrs)", re.I)
 @functools.lru_cache(maxsize=4096)
 def _time_key(t: str | None):
     """Seconds after midnight as a string (one type for every form), so 17:00:01 and 5:00:01 PM compare equal,
-    1700 hours, 5:00 PM and 17:00 compare equal, and 17:00:01 and 17:00:59 do not."""
-    t = (t or "").lower().replace(".", "").strip()
+    1700 hours, 5:00 PM and 17:00 compare equal, and 17:00:01 and 17:00:59 do not. A fraction is compared without its
+    trailing zeros (01.1 and 01.10 are one moment); the dots of "p.m." are dropped, a decimal point is kept."""
+    t = re.sub(r"\.(?!\d)", "", (t or "").lower()).strip()
     if re.fullmatch(r"(?:12(?::00)?\s+)?noon", t):
         return str(12 * 3600)
     if (m := re.fullmatch(r"(\d{3,4})\s*(?:hours|hrs)", t)):
@@ -787,7 +788,9 @@ def _time_key(t: str | None):
     if (m := re.fullmatch(r"(\d{1,2})(?::(\d{2}))?(?::(\d{2}(?:\.\d+)?))?\s*([ap])?m?", t)):
         h, mi, se, ap = int(m.group(1)), int(m.group(2) or 0), m.group(3) or "0", m.group(4)
         hour = (h % 12) + (12 if ap == "p" else 0) if ap else h
-        return f"{hour * 3600 + mi * 60 + int(float(se))}{se[se.find('.'):] if '.' in se else ''}"
+        whole, _, frac = se.partition(".")
+        frac = frac.rstrip("0")
+        return f"{hour * 3600 + mi * 60 + int(whole)}{'.' + frac if frac else ''}"
     return t
 
 
