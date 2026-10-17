@@ -98,3 +98,41 @@ def test_r2_dl_2_issue_words_before_the_deadline_words_are_not_flagged(tmp_path)
     text = BASE + "As amended, proposals are due November 12, 2026 at 5:00 PM ET."
     assert proposals(analyze(text)) == [("November 12, 2026", "5:00 PM", "ET", [])]
     assert strict(tmp_path, text) == 0
+
+
+OLD = ("November 5, 2026", "5:00 PM", "ET", ["negated_or_withdrawn"])
+NEW = ("November 12, 2026", "5:00 PM", "ET", ["replaces_earlier_date"])
+
+
+# R2-DL-1: these revision wordings returned only the old date, unflagged, and --strict returned 0.
+@pytest.mark.parametrize("tail", [
+    "The proposal deadline is changed from the current date of November 5, 2026 at 5:00 PM ET to November 12, 2026 at 5:00 PM ET.",
+    "The extension of the proposal due date from November 5, 2026 at 5:00 PM ET to November 12, 2026 at 5:00 PM ET is authorized.",
+    "The proposal deadline was previously November 5, 2026 at 5:00 PM ET; it is now November 12, 2026 at 5:00 PM ET.",
+    "The proposal due date is moved from its original date of November 5, 2026 at 5:00 PM ET to November 12, 2026 at 5:00 PM ET.",
+])
+def test_r2_dl_1_both_dates_of_a_revision_are_read(tmp_path, tail):
+    assert proposals(analyze(BASE + tail)) == [OLD, NEW]
+    assert strict(tmp_path, BASE + tail) == 2
+
+
+# Any other date in a sentence that changes something, and that was not read as a deadline, is named in a warning,
+# so a revision worded in a way this tool does not read never leaves a clean checklist.
+@pytest.mark.parametrize("tail", [
+    "The proposal deadline is reset from November 5, 2026 at 5:00 PM ET to November 12, 2026 at 5:00 PM ET.",
+    "Proposals due November 5, 2026 at 5:00 PM ET are updated to the new date, November 12, 2026.",
+])
+def test_r2_dl_1_an_unread_date_in_a_change_sentence_is_named(tmp_path, tail):
+    r = analyze(BASE + tail)
+    assert any("November 12, 2026" in w and "not read as a deadline" in w for w in r.warnings), r.warnings
+    assert strict(tmp_path, BASE + tail) == 2
+
+
+@pytest.mark.parametrize("tail", [
+    "Proposals due November 5, 2026 at 5:00 PM ET for performance from January 1, 2027 to December 31, 2027.",
+    "Amendment 0004 issued October 2, 2026 at 5:00 PM ET sets the proposal due date to November 5, 2026 at 5:00 PM ET.",
+])
+def test_r2_dl_1_other_dates_in_a_plain_deadline_sentence_are_not_flagged(tmp_path, tail):
+    r = analyze(BASE + tail)
+    assert proposals(r) == [("November 5, 2026", "5:00 PM", "ET", [])]
+    assert strict(tmp_path, BASE + tail) == 0
