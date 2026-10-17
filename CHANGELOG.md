@@ -73,3 +73,16 @@ later is required, and the PDF extra needs pypdf 6.21.0 or later.
   date-like value;
   a clause with change wording, a deadline word and a time but no date warns (it may also fire beside a dated
   deadline, as in "; revised proposals at 6:00 PM ET").
+- r3 review fixes (kofi, 2026-10-17): the dateless-time check is replaced by a fail-closed clause check: a clause
+  that names a deadline and uses change wording, with no date read as a replacement, warns, so a revision with no
+  readable date, a new date in the next sentence or an unread form, and time-only changes ("vice", "in place of",
+  ", not 5:00 PM ET", "on the original due date", "shifts to") fail `--strict`; "Proposal due date from <old> to
+  <new>" and "FROM: ... TO: ..." with no verb, "extended until", "slipped to" and "shifts from ... to" are read as
+  amendments; "previously", "now" and "(was ...)" mark dates only when they lead directly to them, so "As previously
+  announced, proposals are due" and "now accepting proposals due by" read cleanly; the FAR late-receipt sentence no
+  longer warns; "now <date>" takes a kind only from its own sentence and the check is linear again (it was quadratic
+  on long sentences, new in this candidate); issue words "sent", "distributed", "announced", "went out" and others
+  flag a possible issue date, but "signed and dated" does not; a date after "effective" in a change sentence is
+  named as an unread date; fractions are read in non-ISO times and with a decimal comma; more date-like forms are
+  reported (`November 12,2026`, `12-NOV-2026`, `11-12-2026`, `03 NOV 26`, letters for digits), and a date followed
+  by `_` is flagged; a digit glued to a month name inside a part number is no longer reported.

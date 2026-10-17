@@ -26,20 +26,29 @@ DATE = (
     rf"(?:{_NAMED_DATE}|\d{{1,2}}/\d{{1,2}}/\d{{2,4}}(?!/)|\d{{4}}-\d{{2}}-\d{{2}})(?!\d)"
 )
 # Date-like tokens in an unsupported form are reported instead of silently skipped: too many digits, a digit glued to
-# a month name ("5November 2026", "November5, 2026") and a year typed with a letter ("2O26").
+# a month name ("5November 2026", "November5, 2026", "November 12th2026"), no space after the comma ("November 12,2026"),
+# a letter typed for a digit ("2O26", "November l2, 2026", "11/O3/2026", "2O26-11-03"), dashed forms ("12-NOV-2026",
+# "11-12-2026") and a two-digit year after a month name ("03 NOV 26").
 _LETTER_YEAR = r"(?=[\dOoIl]{4}(?![A-Za-z\d]))(?!\d{4})[\dOoIl]{4}"
+_HAS_LETTER = r"(?=[\dOoIl/\-]*[OoIl])"  # a digit-like token containing at least one letter
 MALFORMED_DATE = (
     rf"{_DATE_GATE}(?:(?:\d{{3,}}/\d{{1,2}}/\d{{2,4}}|\d{{1,2}}/\d{{3,}}/\d{{2,4}}|\d{{1,2}}/\d{{1,2}}/\d{{5,}}"
     rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{5,}}|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{5,}})(?![\d/])"
-    rf"|\d{{1,2}}(?:st|nd|rd|th)?{MONTHS}\s*\d{{4}}(?!\d)|{MONTHS}\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}(?!\d)"
-    rf"|(?:{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+|\d{{1,2}}/\d{{1,2}}/){_LETTER_YEAR})"
+    rf"|{MONTHS}\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}(?!\d)|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,\d{{4}}(?!\d)"
+    rf"|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)\d{{4}}(?!\d)"
+    rf"|(?:{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+|\d{{1,2}}/\d{{1,2}}/){_LETTER_YEAR}"
+    rf"|{MONTHS}\s+(?=[\dOoIl]{{1,2}}(?![\w]))(?!\d{{1,2}}(?![\w]))[\dOoIl]{{1,2}},?\s+\d{{4}}(?!\d)"
+    rf"|{_HAS_LETTER}[\dOoIl]{{4}}-[\dOoIl]{{2}}-[\dOoIl]{{2}}(?![\w-])|{_HAS_LETTER}[\dOoIl]{{1,2}}/[\dOoIl]{{1,2}}/[\dOoIl]{{2,4}}(?![\w/])"
+    rf"|\d{{1,2}}-{MONTHS}-\d{{2,4}}(?![\w-])|\d{{1,2}}-\d{{1,2}}-\d{{4}}(?![\w-])|\d{{1,2}}\s+{MONTHS}\s+\d{{2}}(?![\w]))"
+    # A digit glued to a month name, but not inside a longer token such as a part number ("47QTCA22D00MAR 2026").
+    rf"|(?<![A-Za-z\d])\d{{1,2}}(?:st|nd|rd|th)?{MONTHS}\s*\d{{4}}(?!\d)"
 )
 # AM/PM must end at a token boundary: "17:00 America/New_York" is not "17:00 Am".
 AMPM = r"(?:[ap]\.\s?m\.?|[ap]m)(?![a-z])"
 TIME = (rf"(?<![\d:.])(?:\d{{1,2}}(?::\d{{2}}){{0,2}}\s*{AMPM}"
         rf"|\d{{3,4}}\s*(?:hours|hrs)\b"
         rf"|(?:12(?::00)?\s+)?noon\b"
-        rf"|\d{{1,2}}:\d{{2}}(?::\d{{2}})?(?![\d:]))")
+        rf"|\d{{1,2}}:\d{{2}}(?::\d{{2}}(?:[.,]\d{{1,9}})?)?(?![\d:]))")
 # Written cutoffs that are not clock times. They are preserved as written and flagged, never converted.
 TIME_MARKER = r"\b(?:midnight|EOD|COB|EOB|end of (?:the )?(?:business )?day|close of (?:the )?business(?: day)?|end of business)\b"
 # Longer forms first, so "UTC-04:00" is never reported as "UTC" and IANA names are kept whole.
@@ -133,10 +142,15 @@ TZ_ONLY_AFTER = re.compile(rf"[ \t,|/]*(?:(?:prevailing|local)\b[ \t,]*)*\(?[ \t
 # A time (and zone) written immediately before its date: "by 11:00 AM EDT on November 5, 2026".
 TIME_BEFORE_DATE = re.compile(rf"(?P<time>{TIME}|{TIME_MARKER})(?:{_GAP_TIME_TZ}(?P<tz>{TZ})\)?)?[ \t,]*"
                               rf"(?:on or before|no later than|not later than|by|on|of)?[ \t,]*$", re.I)
-ISO_TIME = re.compile(r"T(\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?)(Z|[+\u2212-]\d{2}:?\d{2})?(?![\d:])")
+ISO_TIME = re.compile(r"T(\d{2}:\d{2}(?::\d{2}(?:[.,]\d{1,9})?)?)(Z|[+\u2212-]\d{2}:?\d{2})?(?![\d:])")
 STRONG_TRIGGER = re.compile(r"\b(?:due|deadline|no later than|not later than|NLT|closing|closes|close[sd]?|on or before|cut-?off)\b", re.I)
 WEAK_TRIGGER = re.compile(r"\b(?:submit(?:ted)?|received|delivered|by|before|prior to|opening)\b", re.I)
 ISSUANCE = re.compile(r"\b(?:issued|issue date|posted|released|published|dated|amend(?:ed|ment)|modified|effective|as of|awarded|signed)\b", re.I)
+# Issue or announcement words that may sit between a deadline word and a date that is not a deadline. Broader than
+# ISSUANCE, which also decides whether a date is skipped; "signed and dated" describes the submission, not an issue.
+ISSUE_AFTER = re.compile(rf"{ISSUANCE.pattern}|\b(?:sent|distributed|announced|went out|mailed|e-?mailed|circulated|transmitted)\b", re.I)
+SIGNED_AND_DATED = re.compile(r"\bsigned\s+and\s+dated\b|\bdated\s+and\s+signed\b", re.I)
+EFFECTIVE_END = re.compile(r"\b(?:effective|as of)\b[\s,:]*$", re.I)
 AFTER_WORD = re.compile(r"\bafter\b", re.I)
 # Before the date; only counts when no due/deadline wording follows it ("will not be accepted by fax and are due").
 NEGATION = re.compile(r"\b(?:not|no longer|never)\s+(?:be\s+)?(?:due\b(?!\s+until)|required|accepted|held)\b", re.I)
@@ -149,18 +163,45 @@ CONDITIONAL = re.compile(r"\b(?:unless|if|in the event)\b.*", re.I | re.S)
 # Something written where a zone would be, in a form TZ does not accept ("UTC+05:300", "America/A/B/C/D").
 TZ_LIKE = re.compile(r"[ \t,(]*(?:(?:UTC|GMT)\s?[+\u2212-]\s?\d|(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/)", re.I)
 # Amendments: "extended from <old> to <new>", "<old> is extended to <new>", "changed to <new>".
-CHANGE_VERB = r"\b(?:extend|extens|chang|mov|postpon|revis|amend|reschedul|delay|advanc|push)\w*\b"
-# "from <date>", "from the current date of <date>", "from its original date of <date>"; never across a "to".
+CHANGE_VERB = r"\b(?:extend|extens|chang|mov|postpon|revis|amend|reschedul|delay|advanc|push|slip|shift)\w*\b"
+# What names a deadline: "proposal due date", "closing time", "deadline", "time for receipt", "proposals are now due",
+# an SF form block.
+DEADLINE_NOUN = (r"\b(?:(?:proposal|offer|quote|quotation|bid|response|submission|question|application|closing|receipt)s?"
+                 r"\s+(?:due\s+)?(?:date|time|deadline)s?|due\s+(?:date|time)s?|deadlines?|(?:date\s+and\s+)?time\s+(?:for|of)\s+receipt"
+                 r"|block\s+\d{1,2}|(?:proposals?|offers?|quotes?|quotations?|bids?|responses?|submissions?|questions?|applications?)"
+                 r"\s+(?:(?:are|is|will\s+be|shall\s+be|remains?|were|was)\s+)?(?:now\s+|originally\s+|still\s+)?due)\b")
+# "from <date>", "from the current date of <date>", "from its original date of <date>"; never across a "to". The
+# "from" may follow a change verb or directly a deadline noun ("Proposal due date FROM: <old> TO: <new>").
 _UP_TO_DATE = r"(?:(?!\bto\b)[^.;\d]){0,40}$"
-FROM_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bfrom\b{_UP_TO_DATE}", re.I)
-# "The deadline was previously <date>; it is now <date>".
-PREVIOUS_BEFORE = re.compile(rf"\b(?:previously|formerly|originally)\b{_UP_TO_DATE}", re.I)
-NOW_BEFORE = re.compile(rf"\bnow\b{_UP_TO_DATE}", re.I)
+FROM_BEFORE = re.compile(rf"(?:{CHANGE_VERB}[^.;]{{0,60}}?|{DEADLINE_NOUN}[\s:,\-]*)\bfrom\b{_UP_TO_DATE}", re.I)
+# "The deadline was previously <date>; it is now <date>", "originally due <date>", "(formerly <date>)", "(was <date>)".
+# Only short connecting words may follow, so "as previously announced, proposals are due <date>" is not withdrawn.
+PREVIOUS_BEFORE = re.compile(r"(?:\b(?:previously|formerly|originally)(?:\s+(?:was|were|been|is|set|scheduled|due|for|at|on|of|as))*"
+                             r"|\(\s*was)[\s,:]*$", re.I)
+NOW_BEFORE = re.compile(r"\bnow(?:\s+(?:due|set|scheduled|extended|changed|moved|on|for|at|by|until|reads?))*[\s,:]*$", re.I)
 # A sentence that changes something: any other date in it that is not read as a deadline is named in a warning.
 CHANGE_WORDS = re.compile(rf"{CHANGE_VERB}|\b(?:now|previously|formerly|originally|instead|in lieu|replac\w*|supersed\w*"
                           rf"|reset|updat\w*|correct\w*|modif\w*|new)\b", re.I)
-TO_BEFORE = re.compile(rf"(?:{CHANGE_VERB}[^.;]{{0,60}}?)?\bto(?:\s+read(?:\s+as\s+follows)?)?[\s:]*$", re.I)
-CHANGE_TO_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bto(?:\s+read(?:\s+as\s+follows)?)?[\s:]*$", re.I)
+_TO = r"\b(?:to|until|till|through)(?:\s+read(?:\s+as\s+follows)?)?[\s:]*$"
+TO_BEFORE = re.compile(rf"(?:{CHANGE_VERB}[^.;]{{0,60}}?)?{_TO}", re.I)
+CHANGE_TO_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?{_TO}", re.I)
+# Fail-closed: a sentence that names a deadline (DEADLINE_NOUN) and uses change wording, but in which no date was read
+# as a replacement, is reported, so a revision worded in a way this tool does not read cannot leave a clean checklist.
+# Verb forms only ("revisions", "amendments" and "revised proposals" name things, not changes).
+_DATE_NEXT = r"(?=\d|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))"
+CHANGE_TERM = re.compile(
+    r"\b(?:extend(?:s|ed|ing)?|extension|chang(?:es|ed|ing)|mov(?:es|ed|ing)|postpon(?:es|ed|ing|ement)"
+    r"|revis(?:es|ing)|revised(?!\s+(?:proposals?|offers?|quotes?|quotations?|bids?|submissions?))|(?<!as )amend(?:s|ed|ing)"
+    r"|reschedul(?:es|ed|ing)|delay(?:ed|ing)|advanc(?:es|ed|ing)|push(?:es|ed|ing)|slip(?:s|ped|ping)?|shift(?:s|ed|ing)?"
+    r"|substitut(?:e|es|ed|ing)|replac(?:es|ed|ing)|reset|updated|modif(?:ies|ied|ying)|correct(?:ed|ing)|delet(?:e|es|ed|ing)"
+    r"|insert(?:s|ed|ing)?|supersed(?:es|ed|ing)|vice|instead\s+of|in\s+(?:place|lieu)\s+of|rather\s+than|formerly|originally"
+    r"|no\s+longer\s+(?:applies|apply|valid|in\s+effect|required)|until\s+further\s+notice"
+    r"|previously(?!\s+(?:announced|stated|noted|indicated|advised|posted|published|mentioned|discussed|described|registered|submitted|provided))"
+    r"|original\s+(?:\w+\s+)?(?:date|time|deadline)|same\s+(?:\w+\s+)?(?:date|day)\s+(?:but|at|with)"
+    r"|(?:old|new)\s*:|new\s+(?:\w+\s+)?(?:date|deadline|time)|now\s+(?:reads?|due|set|scheduled|closes?|ends?)\b"
+    rf"|now\s+{_DATE_NEXT})|\(\s*was\b|,\s*not\s+{_DATE_NEXT}", re.I)
+NOUN_THEN_FROM = re.compile(rf"{DEADLINE_NOUN}[\s:,\-]*from\b", re.I)
+DEADLINE_NOUN_RE = re.compile(DEADLINE_NOUN, re.I)
 # "is extended to <date>" with no earlier date in the clause is an amendment of a deadline only when the sentence says
 # what changed ("This date", "receipt of Offers", "the response period", "the question period", any deadline kind
 # word, "changed to read"), not "the period of performance may be extended". Fail-closed: a validity change that names
@@ -605,15 +646,20 @@ RANGE_WORDS = re.compile(r"\b(?:through|thru|to|until|from|period|performance|st
 ZONE_NAMES = {"eastern": "et", "central": "ct", "mountain": "mt", "pacific": "pt", "alaska": "akt", "hawaii": "ht"}
 
 
-def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) -> list[Deadline]:
+def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES, issues: list[int] | None = None) -> list[Deadline]:
     """Deadlines in one statement. `prev` is the adjacent statement before it, used as the label of a date that
-    begins this statement ("Proposals are due no later than the date and time below." / "November 5, ...")."""
+    begins this statement ("Proposals are due no later than the date and time below." / "November 5, ...").
+    `issues`, when given, receives the line of each clause that appears to change a deadline without a date that
+    was read as a replacement."""
     out: list[Deadline] = []
     starts: list[int] = []                 # date offset of each deadline in `out`
     consumed: list[tuple[int, int]] = []   # spans already bound to some date, as time or zone
     skipped: list[re.Match] = []           # dates not read as deadlines (issue dates excluded)
     s = st.text
     stopped = len(s)                       # where extraction stopped if the deadline limit was reached
+    sent_ends = [m.start() for m in SENTENCE_END.finditer(s) if _is_boundary(s, m.start())]
+    def same_sentence(a: int, b: int) -> bool:  # two offsets in one sentence; binary searches, never a rescan
+        return bisect.bisect_left(sent_ends, a) == bisect.bisect_left(sent_ends, b)
     # "Proposals: briefing 9:00 AM ET; due November 5" -> the leading label names what is due (kind only).
     label = m.group(1) if (m := re.match(r"([^:;.]{1,60}):(?!\d)", s)) else ""  # not the colon of "5:00"
     for c0, c1 in _clauses(s):
@@ -658,7 +704,7 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
             # "...; it is now <date>" replaces the deadline before it in the same sentence and takes its kind.
             now_repl = bool(NOW_BEFORE.search(s, hp, lead)) and bool(
                 CHANGE_HINT.search(s, hp, lead) or _kind(s[hp:lead])
-                or (out and not any(_is_boundary(s, m.start()) for m in SENTENCE_END.finditer(s, starts[-1], dm.start()))))
+                or (out and same_sentence(starts[-1], dm.start())))
             replacement = bool((k > 0 and prev_superseded and TO_BEFORE.search(s, hp, lead))
                                or (CHANGE_TO_BEFORE.search(s, hp, lead)
                                    and (k > 0 or CHANGE_HINT.search(s, hp, lead) or _kind(s[hp:lead])))) or now_repl
@@ -682,14 +728,14 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
             prev_end = bind_end
             if not is_deadline:
                 prev_superseded = False
-                if not skip:
+                if not skip or EFFECTIVE_END.search(region):  # "..., effective <date>" in a change sentence is a new date
                     skipped.append(dm)
                 continue
             line_start = max(off for off, _ in st.starts if off <= dm.start())
             local = s[max(line_start, region_start):dm.start()]
             earlier = next((kn for kn, end in kind_ends if end <= dm.start()), None)
             kind = ((prev_kind if replacement and prev_kind else None) or _kind(local, region) or (None if by_time else earlier)
-                    or (out[-1].kind if now_repl and out else None) or _kind_first(after) or _kind(label) or (_kind(prev) if labelled_by_prev else None) or "other")
+                    or (out[-1].kind if now_repl and out and same_sentence(starts[-1], dm.start()) else None) or _kind_first(after) or _kind(label) or (_kind(prev) if labelled_by_prev else None) or "other")
             amb: list[str] = ["kind_uncertain"] if by_time else []
             # "Offerors registered in SAM.gov shall submit proposals by ...": the submission kind wins over a context
             # kind; if the context word is the one nearer the date, say the kind is uncertain.
@@ -703,7 +749,7 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
                         amb.append("kind_uncertain")
                     kind = sub
             amb += _date_issues(_norm_ws(dm.group(0)))
-            if s[dm.end():dm.end() + 1].isalpha() and not ISO_TIME.match(s, dm.end()):
+            if re.match(r"[^\W\d]", s[dm.end():dm.end() + 1]) and not ISO_TIME.match(s, dm.end()):  # a letter or "_"
                 amb.append("date_glued_to_text")  # "November 5, 2026oops": the date may be cut or mistyped
             if time is None:
                 amb.append("no_time")
@@ -720,7 +766,7 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
                 amb.append("negated_or_withdrawn")
             if replacement:
                 amb.append("replaces_earlier_date")
-            elif strong and (iss := [m.start() for m in ISSUANCE.finditer(region)]) and \
+            elif strong and (iss := [m.start() for m in ISSUE_AFTER.finditer(SIGNED_AND_DATED.sub(lambda x: " " * len(x.group(0)), region))]) and \
                     iss[-1] > max(m.start() for m in STRONG_TRIGGER.finditer(region)):
                 amb.append("issue_date_possible")  # "the proposal due date was issued <date>": the issue word is nearer
             prev_kind, prev_superseded = kind, "negated_or_withdrawn" in amb
@@ -741,7 +787,7 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
     # Spans and starts are in text order, so each time is placed with two binary searches (linear overall).
     if out:
         span_starts = [a for a, _ in consumed]
-        ends = [m.start() for m in SENTENCE_END.finditer(s) if _is_boundary(s, m.start())]
+        ends = sent_ends
         for t in TIME_RE.finditer(s, starts[0], stopped):
             j = bisect.bisect_right(span_starts, t.start()) - 1
             if (MARKER_RE.fullmatch(t.group(0)) or (j >= 0 and t.start() < consumed[j][1])
@@ -774,6 +820,16 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
                 changes[e] = CHANGE_WORDS.search(s, a, b) is not None
             if changes[e] and sum(x.startswith("unread_date:") for x in out[i].ambiguities) < MAX_OTHER_TIMES:
                 out[i].ambiguities.append(f"unread_date:{_norm_ws(dm.group(0))}")
+    # Fail-closed: a clause that names a deadline and uses change wording, in which no date was read as a
+    # replacement, is reported. One pass over the clauses (split at ";" as well as sentence ends, so a change to
+    # something else in the next clause does not count); deadlines are found by binary search.
+    if issues is not None:
+        for pos, end in _clauses(s):
+            if DEADLINE_NOUN_RE.search(s, pos, end) and (CHANGE_TERM.search(s, pos, end) or NOUN_THEN_FROM.search(s, pos, end)):
+                lo, hi = bisect.bisect_left(starts, pos), bisect.bisect_left(starts, end)
+                if not any("replaces_earlier_date" in out[i].ambiguities for i in range(lo, hi)):
+                    lead = re.match(r"\s*", s[pos:pos + 200]).end()  # bounded: only leading spaces are skipped
+                    issues.append(st.line_at(pos + lead))
     return out
 
 
@@ -819,7 +875,7 @@ def _time_key(t: str | None):
     """Seconds after midnight as a string (one type for every form), so 17:00:01 and 5:00:01 PM compare equal,
     1700 hours, 5:00 PM and 17:00 compare equal, and 17:00:01 and 17:00:59 do not. A fraction is compared without its
     trailing zeros (01.1 and 01.10 are one moment); the dots of "p.m." are dropped, a decimal point is kept."""
-    t = re.sub(r"\.(?!\d)", "", (t or "").lower()).strip()
+    t = re.sub(r"\.(?!\d)", "", re.sub(r"(?<=\d),(?=\d)", ".", (t or "").lower())).strip()
     if re.fullmatch(r"(?:12(?::00)?\s+)?noon", t):
         return str(12 * 3600)
     if (m := re.fullmatch(r"(\d{3,4})\s*(?:hours|hrs)", t)):
@@ -878,17 +934,11 @@ def analyze(text: str) -> Report:
 
     prev: _Statement | None = None
     capped = []
-    time_changes: list[int] = []  # lines of clauses with change wording, a deadline word and a time, but no date
+    revisions: list[int] = []  # lines of clauses that appear to change a deadline in a way that was not read
     for st in _statements(lines):
-        pos = 0
-        for sent in iter_sentences(st.text):
-            start, pos = pos, pos + len(sent)
-            if (CHANGE_WORDS.search(sent) and (CHANGE_HINT.search(sent) or _kind(sent)) and not DATE_RE.search(sent)
-                    and any(not DURATION_HOURS.fullmatch(t.group(0)) for t in TIME_RE.finditer(sent))):
-                time_changes.append(st.line_at(start + len(sent) - len(sent.lstrip())))
         adjacent = prev is not None and prev.starts[-1][1] + 1 == st.starts[0][1] and len(prev.text) <= 200
         if len(r.deadlines) < MAX_DEADLINES:
-            r.deadlines += _deadlines_in(st, prev.text if adjacent else "", MAX_DEADLINES - len(r.deadlines))
+            r.deadlines += _deadlines_in(st, prev.text if adjacent else "", MAX_DEADLINES - len(r.deadlines), revisions)
             if len(r.deadlines) >= MAX_DEADLINES:
                 capped.append(f"More than {MAX_DEADLINES} dated deadlines; extraction stopped at line {st.line_at(0)}. Check the rest of the document.")
         if len(r.requirements) < MAX_REQUIREMENTS:
@@ -970,10 +1020,10 @@ def analyze(text: str) -> Report:
                 r.warnings.append(f"Line {i} has a date-like value in a form this tool does not read (\"{_norm_ws(m.group(0))[:40]}\"); check it in the source.")
     if malformed > MAX_MALFORMED_WARNINGS:
         r.warnings.append(f"{malformed - MAX_MALFORMED_WARNINGS} more date-like values in unsupported forms are not listed.")
-    for i in time_changes[:MAX_MALFORMED_WARNINGS]:
-        r.warnings.append(f"Line {i} has change wording and a time but no date; confirm which deadline it changes and its cutoff.")
-    if len(time_changes) > MAX_MALFORMED_WARNINGS:
-        r.warnings.append(f"{len(time_changes) - MAX_MALFORMED_WARNINGS} more clauses with change wording and a time but no date are not listed.")
+    for i in revisions[:MAX_MALFORMED_WARNINGS]:
+        r.warnings.append(f"Line {i} appears to change a deadline in a way this tool does not read; confirm the new date and time in the source.")
+    if len(revisions) > MAX_MALFORMED_WARNINGS:
+        r.warnings.append(f"{len(revisions) - MAX_MALFORMED_WARNINGS} more sentences that appear to change a deadline are not listed.")
     if "\ufffd" in text:
         r.warnings.append("Input contains U+FFFD replacement characters (undecodable bytes or a lossy conversion); some text may be missing.")
     if not r.page_limits:

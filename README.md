@@ -62,9 +62,16 @@ the implemented checks fired:
 - no requirement was reported as an excerpt;
 - page limits were found;
 - no date-like value was found in a form the tool does not read (for example `111/05/2026`,
-  `5November 2026` or a year typed as `2O26`), and no deadline's date runs into the text after it
-  (`November 5, 2026x` is read as November 5 and flagged);
-- no clause has change wording, a deadline word and a time but no date ("The closing time is now 3:00 PM ET."); and
+  `5November 2026`, `November 12,2026`, `12-NOV-2026`, `11-12-2026`, `03 NOV 26`, or a letter typed for a
+  digit as in `2O26` or `November l2, 2026`), and no deadline's date runs into the text after it
+  (`November 5, 2026x` and `November 5, 2026_draft` are read as November 5 and flagged);
+- no clause both names a deadline ("proposal due date", "closing time", "deadline", "time for receipt",
+  "proposals are now due", an SF form block) and uses change wording ("extended", "postponed", "revised",
+  "now <date or time>", "new date", "vice", "in place of", "rather than", ", not <date>", "(was <date>)",
+  "formerly", "originally", "from ... to ...", and so on) without one of its dates being read as a
+  replacement. This is what makes a revision fail `--strict` when the tool cannot read it: a change
+  with no date ("postponed until further notice"), a new date in a form it does not read, a new date in
+  the next sentence, or a time-only change; and
 - the input decoded without replacement characters, and extraction did not stop at its per-document
   limits.
 
@@ -80,10 +87,14 @@ sentence names a date, time, receipt, submission, solicitation or any deadline k
 registration, site visit, and so on); an issue or amendment word between the deadline word and its date ("due on
 the date stated in Amendment 0002, November 12, 2026"); any other date in a deadline's sentence when that sentence
 has change wording ("new", "now", "updated", "extended", and so on), such as a performance period in the same
-sentence as an extended deadline; and a sentence with change wording, a deadline word and a clock time but no date
-("questions may now be sent until 3:00 PM ET"). An amendment that changes only a time is detected but not read:
-the warning names its line, and when such a change is written next to a date the old time may be the one reported
-(flagged as withdrawn or as another time).
+sentence as an extended deadline; and any clause that names a deadline and uses change wording without a date read
+as a replacement, for example "No extension of the closing date will be granted" or "Offerors may not substitute
+key personnel after the proposal due date". A change that the tool cannot read is reported, not read: the warning
+names its line, and the reader confirms the new date or time in the source. When a time-only change is written next
+to a date, the old time may be the one reported (flagged as withdrawn or as another time). Dates after an issue
+word ("issued", "posted", "dated", and so on) with no deadline word before them are skipped as issue dates and are
+not named by the unread-date check, except after "effective" or "as of"; a clause that also names a deadline with
+change wording is still reported by the clause check above.
 
 ## Library
 

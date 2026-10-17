@@ -153,7 +153,7 @@ def test_r2_dl_1_other_dates_in_a_plain_deadline_sentence_are_not_flagged(tmp_pa
 ])
 def test_a_time_only_revision_fails_strict(tmp_path, tail):
     text = BASE + COMPLETE + tail
-    assert any("change wording and a time but no date" in w for w in analyze(text).warnings)
+    assert any("appears to change a deadline" in w for w in analyze(text).warnings)
     assert strict(tmp_path, text) == 2
 
 
@@ -168,6 +168,6 @@ def test_a_time_without_change_wording_is_not_a_revision(tmp_path, tail):
 def test_time_only_revision_warnings_are_capped():
     from bid_deadline_check import core
     r = analyze(BASE + COMPLETE + "The closing time is now 3:00 PM ET.\n" * 80)
-    listed = [w for w in r.warnings if w.startswith("Line ") and "change wording and a time but no date" in w]
+    listed = [w for w in r.warnings if w.startswith("Line ") and "appears to change a deadline" in w]
     assert len(listed) == core.MAX_MALFORMED_WARNINGS
-    assert any(w.startswith("30 more clauses") for w in r.warnings)
+    assert any(w.startswith("30 more sentences") for w in r.warnings)
