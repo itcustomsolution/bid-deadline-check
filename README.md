@@ -63,12 +63,14 @@ the implemented checks fired:
 - page limits were found;
 - no date-like value was found in a form the tool does not read (for example `111/05/2026`,
   `5November 2026`, `November 12,2026`, `12-NOV-2026`, `11-12-2026`, `03 NOV 26`, or a letter typed for a
-  digit as in `2O26` or `November l2, 2026`), and no deadline's date runs into the text after it
-  (`November 5, 2026x` and `November 5, 2026_draft` are read as November 5 and flagged);
+  digit as in `2O26` or `November l2, 2026`), and no deadline's date or zone runs into the text after it
+  (`November 5, 2026x` and `November 5, 2026_draft` are read as November 5 and flagged; `17:00:00Zdraft` and
+  `UTC+05:30junk` are read as `Z` and `UTC+05:30` and flagged);
 - no clause both names a deadline ("proposal due date", "closing time", "deadline", "time for receipt",
   "proposals are now due", an SF form block) and uses change wording ("extended", "postponed", "revised",
-  "now <date or time>", "new date", "vice", "in place of", "rather than", ", not <date>", "(was <date>)",
-  "formerly", "originally", "from ... to ...", and so on) without one of its dates being read as a
+  "altered", "adjusted", "brought forward", "revoked", "suspended", "slides", "now <date or time>", "new date",
+  "vice", "in place of", "rather than", ", not <date>", "(was <date>)", "formerly", "originally",
+  "from ... to ...", and so on) without one of its dates being read as a
   replacement, and no clause without a date has change wording (or "now"), a deadline word and a clock
   time ("Proposals must now be received by 3:00 PM ET."). These two checks are what make a revision fail
   `--strict` when the tool cannot read it: a change with no date ("postponed until further notice"), a new
@@ -76,12 +78,13 @@ the implemented checks fired:
   keyword based, so they also miss revisions: a dateless change whose subject is not one of the deadline
   names above ("Receipt of offers is extended by one week.", "The submission window is extended by ten
   days.", "Closing extended one week."), an SF-30 Block 11 box checked as "[X] is extended", "due one week
-  later", a time written without a change word ("Amendment 0004: submit proposals by 3:00 PM ET."), a
-  suspension ("suspended pending the outcome of a protest"), "Offers due: TBD", "slides one week", a zone
-  change ("Central Time, not Eastern Time") and a new date stated without change wording ("Proposals will be
-  accepted until November 12, 2026 at 5:00 PM ET." beside the old one) give `--strict` 0 with only the old
-  deadline. In the last internal review, 5 of 10 fresh revision sentences passed `--strict`: treat a clean
-  `--strict` result as "no implemented check fired", never as "no amendment changed a deadline"; and
+  later", a time written without a change word ("Amendment 0004: submit proposals by 3:00 PM ET."), "Offers
+  due: TBD", a zone change ("Central Time, not Eastern Time") and a new date stated without change wording
+  ("Proposals will be accepted until November 12, 2026 at 5:00 PM ET." beside the old one) give `--strict` 0
+  with only the old deadline, as does any other change verb the tool does not list. Of the last internal
+  review's 10 fresh revision sentences, 3 still pass `--strict` (5 did before this release); of its 30
+  harder revision sentences, 13 pass. Treat a clean `--strict` result as "no implemented check fired", never as
+  "no amendment changed a deadline"; and
 - the input decoded without replacement characters, and extraction did not stop at its per-document
   limits.
 
@@ -94,8 +97,9 @@ Known cases where `--strict` fails although nothing is wrong: the same time rest
 sentence ("; hand-carried proposals are accepted between 8:00 AM and 4:00 PM ET"); and slash-separated part
 or document numbers that look like dates (`123/45/6789`); a period-of-performance or validity change whose
 sentence names a date, time, receipt, submission, solicitation or any deadline kind (offers, questions,
-registration, site visit, and so on); an issue or amendment word between the deadline word and its date ("due on
-the date stated in Amendment 0002, November 12, 2026"); any other date in a deadline's sentence when that sentence
+registration, site visit, and so on); an issue, amendment or announcement word between the deadline word and its
+date ("due on the date stated in Amendment 0002, November 12, 2026", "the due date was communicated to offerors
+on ..."); any other date in a deadline's sentence when that sentence
 has change wording ("new", "now", "updated", "extended", and so on), such as a performance period in the same
 sentence as an extended deadline; and any clause that names a deadline and uses change wording without a date read
 as a replacement, including hedged or hypothetical sentences: "Requests for extension of the proposal due date will
@@ -122,9 +126,10 @@ rows = report.checklist()   # list of dicts: id, category, item, line, done
 `Deadline` has `kind`, `date`, `time`, `timezone`, `line`, `text` (the clause around the date),
 `end_line` and `ambiguities` (codes: `no_time`, `no_timezone`, `time_marker:<text>`, `invalid_date`,
 `invalid_time`, `two_digit_year`, `negated_or_withdrawn`, `replaces_earlier_date` (the new date of an
-"extended/changed/moved from ... to ..." or "... it is now <date>" amendment), `issue_date_possible` (an issue
-or amendment word sits between the deadline word and the date), `date_glued_to_text` (letters follow the date with
-no space, as in `2026at`), `other_time:<text>` (another clock time in the same
+"extended/changed/moved from ... to ..." or "... it is now <date>" amendment), `issue_date_possible` (an issue,
+amendment or announcement word, such as "was publicized" or "was delivered", sits between the deadline word and the
+date), `date_glued_to_text` (letters follow the date with no space, as in `2026at`), `timezone_glued_to_text`
+(letters or digits follow the zone with no space, as in `17:00:00Zdraft` or `UTC+05:30junk`), `other_time:<text>` (another clock time in the same
 sentence, at most five), `unread_date:<text>` (another date in a sentence with change wording that was not read as
 a deadline, at most five), `after_clause`, `kind_uncertain`, `timezone_unclear` (a zone that may be cut
 short or is in an unsupported form, such as `UTC+05:30:15`), `statement_split_at_limit`, and

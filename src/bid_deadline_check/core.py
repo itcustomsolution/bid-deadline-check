@@ -148,13 +148,15 @@ WEAK_TRIGGER = re.compile(r"\b(?:submit(?:ted)?|received|delivered|by|before|pri
 ISSUANCE = re.compile(r"\b(?:issued|issue date|posted|released|published|dated|amend(?:ed|ment)|modified|effective|as of|awarded|signed)\b", re.I)
 # Issue or announcement words that may sit between a deadline word and a date that is not a deadline. Broader than
 # ISSUANCE, which also decides whether a date is skipped; "signed and dated" describes the submission, not an issue.
-ISSUE_AFTER = re.compile(rf"{ISSUANCE.pattern}|\b(?:sent|distributed|announced|went out|mailed|e-?mailed|circulated|transmitted)\b", re.I)
+ISSUE_AFTER = re.compile(rf"{ISSUANCE.pattern}|\b(?:sent|distributed|announced|went out|mailed|e-?mailed|circulated|transmitted"
+                         r"|publici[sz]ed|advertised|broadcast|communicated|made\s+public)\b"
+                         r"|\b(?:was|were|has\s+been|have\s+been|had\s+been)\s+(?:\w+\s+)?delivered\b", re.I)
 SIGNED_AND_DATED = re.compile(r"\bsigned\s+and\s+dated\b|\bdated\s+and\s+signed\b", re.I)
 EFFECTIVE_END = re.compile(r"\b(?:effective|as of)\b[\s,:]*$", re.I)
 AFTER_WORD = re.compile(r"\bafter\b", re.I)
 # Before the date; only counts when no due/deadline wording follows it ("will not be accepted by fax and are due").
 NEGATION = re.compile(r"\b(?:not|no longer|never)\s+(?:be\s+)?(?:due\b(?!\s+until)|required|accepted|held)\b", re.I)
-WITHDRAWN = re.compile(r"\b(?:withdrawn|cancel+ed|rescinded|superseded|postponed|deleted|suspended|voided|vacated|struck|resolicited)\b", re.I)
+WITHDRAWN = re.compile(r"\b(?:withdrawn|cancel+ed|rescinded|revoked|superseded|postponed|deleted|suspended|voided|vacated|struck|resolicited)\b", re.I)
 # After the date: "<date> is no longer in effect", "<date> is hereby removed", "<date> has been extended to ...".
 VOIDED_AFTER = re.compile(r"\b(?:no longer|not\s+(?:be\s+)?(?:in effect|applicable|valid|required)"
                           r"|(?:is|are|was|were|has been|have been|will be|hereby)\s+(?:\w+\s+)?(?:extended|changed|revised|replaced|moved"
@@ -163,7 +165,9 @@ CONDITIONAL = re.compile(r"\b(?:unless|if|in the event)\b.*", re.I | re.S)
 # Something written where a zone would be, in a form TZ does not accept ("UTC+05:300", "America/A/B/C/D").
 TZ_LIKE = re.compile(r"[ \t,(]*(?:(?:UTC|GMT)\s?[+\u2212-]\s?\d|(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/)", re.I)
 # Amendments: "extended from <old> to <new>", "<old> is extended to <new>", "changed to <new>".
-CHANGE_VERB = r"\b(?:extend|extens|chang|mov|postpon|revis|amend|reschedul|delay|advanc|push|slip|shift)\w*\b"
+_MORE_CHANGE = (r"alter(?:s|ed|ing)|adjust(?:s|ed|ing)|accelerat(?:es|ed|ing)|revok(?:es|ed|ing)|rescind(?:s|ed|ing)"
+                r"|suspend(?:s|ed|ing)|slid(?:es|ing)|slide|br(?:ought|ings?|inging)\s+forward")
+CHANGE_VERB = rf"\b(?:(?:extend|extens|chang|mov|postpon|revis|amend|reschedul|delay|advanc|push|slip|shift)\w*|{_MORE_CHANGE})\b"
 # What names a deadline: "proposal due date", "closing time", "deadline", "time for receipt", "proposals are now due",
 # an SF form block.
 DEADLINE_NOUN = (r"\b(?:(?:proposal|offer|quote|quotation|bid|response|submission|question|application|closing|receipt)s?"
@@ -194,6 +198,7 @@ CHANGE_TERM = re.compile(
     r"\b(?:extend(?:s|ed|ing)?|extension|chang(?:es|ed|ing)|mov(?:es|ed|ing)|postpon(?:es|ed|ing|ement)"
     r"|revis(?:es|ing)|revised(?!\s+(?:proposals?|offers?|quotes?|quotations?|bids?|submissions?))|(?<!as )amend(?:s|ed|ing)"
     r"|reschedul(?:es|ed|ing)|delay(?:ed|ing)|advanc(?:es|ed|ing)|push(?:es|ed|ing)|slip(?:s|ped|ping)?|shift(?:s|ed|ing)?"
+    rf"|{_MORE_CHANGE}"
     r"|substitut(?:e|es|ed|ing)|replac(?:es|ed|ing)|reset|updated|modif(?:ies|ied|ying)|correct(?:ed|ing)|delet(?:e|es|ed|ing)"
     r"|insert(?:s|ed|ing)?|supersed(?:es|ed|ing)|vice|instead\s+of|in\s+(?:place|lieu)\s+of|rather\s+than|formerly|originally"
     r"|no\s+longer\s+(?:applies|apply|valid|in\s+effect|required)|until\s+further\s+notice"
@@ -275,7 +280,7 @@ class Deadline:
     # Codes for anything a reader must check: no_time, no_timezone, time_marker:<text>, invalid_date,
     # invalid_time, two_digit_year, negated_or_withdrawn, after_clause, kind_uncertain, timezone_unclear,
     # context_truncated (informational: only the excerpt was shortened), statement_split_at_limit, issue_date_possible,
-    # replaces_earlier_date, other_time:<text>, unread_date:<text>, date_glued_to_text.
+    # replaces_earlier_date, other_time:<text>, unread_date:<text>, date_glued_to_text, timezone_glued_to_text.
     ambiguities: list[str] = field(default_factory=list)
 
 
@@ -686,16 +691,18 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES, is
             region_start = prev_end
             nxt = c1 if last else following.start()
             time, tz, bind_end = _bind_after(s, dm.end(), nxt)
+            zone_after = tz is not None  # the zone, if any, ends at bind_end
             unclear_zone = time is not None and tz is None and TZ_LIKE.match(s, bind_end, nxt) is not None
             # "November 5 (5:00 PM ET on November 6 ...)": that time is written for the next date, not this one.
             if time is not None and not last and re.fullmatch(r"[\s,]*(?:on|of)?[\s,]*", s[bind_end:nxt]):
-                time, tz, bind_end = None, None, dm.end()
+                time, tz, bind_end, zone_after = None, None, dm.end(), False
             lead = dm.start()  # where this date's written time begins, when the time is written before the date
             if time is None:
                 lo = max(prev_end, dm.start() - 80)
                 b = TIME_BEFORE_DATE.search(s, lo, dm.start())
                 if b:
                     time, tz = b.group("time"), b.group("tz") or tz
+                    zone_after = zone_after and not b.group("tz")
                     consumed.append((b.start(), dm.start()))
                     lead = b.start()
             consumed.append((dm.start(), bind_end))
@@ -778,6 +785,8 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES, is
                 amb.append("after_clause")  # "Offers received after <date> will not be considered"
             if tz and "/" in tz and re.match(r"\s+[A-Z][a-z]", s[bind_end:bind_end + 3]):
                 amb.append("timezone_unclear")  # "America/New York"
+            if tz and zone_after and re.match(r"\w", s[bind_end:bind_end + 1]):
+                amb.append("timezone_glued_to_text")  # "17:00:00Zdraft", "UTC+05:30junk": the zone may be cut or mistyped
             lo, hi = max(c0, dm.start() - MAX_DEADLINE_CONTEXT), min(c1, bind_end + MAX_DEADLINE_CONTEXT)
             if lo > c0 or hi < c1:
                 amb.append("context_truncated")
@@ -1001,6 +1010,8 @@ def analyze(text: str) -> Report:
                                   else f"Deadline on line {d.line}: the timezone is written in a form this tool does not support; read the source text.")
             elif a == "date_glued_to_text":
                 r.warnings.append(f"Deadline on line {d.line}: \"{d.date}\" runs into the text after it; check the full date in the source.")
+            elif a == "timezone_glued_to_text":
+                r.warnings.append(f"Deadline on line {d.line}: timezone \"{d.timezone}\" runs into the text after it; check the full zone in the source.")
             elif a == "issue_date_possible":
                 r.warnings.append(f"Deadline on line {d.line}: \"{d.date}\" follows an issue or amendment word; confirm it is a deadline and not the date the document was issued.")
             elif a == "replaces_earlier_date":
