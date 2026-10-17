@@ -24,3 +24,17 @@ later is required, and the PDF extra needs pypdf 6.21.0 or later.
   replacement characters is flagged.
 - Build and test inputs are hash-pinned in `requirements/`; CI matrix restored for Python 3.10/3.12/3.14 on Linux
   and 3.14 on macOS.
+- Local verification of this candidate (2026-10-16): CPython 3.10, 3.11, 3.12 and 3.14 on macOS (arm64), from source
+  and from the built wheel. Python 3.13, Linux and Windows were not run; no hosted CI run exists for it.
+- Independent review fixes: a date followed by "is no longer in effect", "is suspended", "is hereby removed",
+  "has been extended" and similar is flagged `negated_or_withdrawn`, while "unless cancelled" and "are not due until"
+  are not; kind words match whole words and a submission outranks a context word ("registered in SAM.gov",
+  "industry day"), so an amended due date is no longer hidden under another kind; a capitals label or a sentence on
+  the line above a date labels it again (cover pages, SF-1449 block 8); a date-only line ends its statement; a
+  requirement interrupted by a list item or heading is flagged; "received after <date>" is reported with
+  `after_clause`; "12 noon", "hrs", "prevailing", "sharp", ranges, "Due Time:", dashes, slashes, pipes and
+  "on or before" no longer break time or zone binding; "FEBRUARY 31ST" is flagged; duplicates written in different
+  formats ("11/05/2026", "ET" / "Eastern Time") are one deadline; "Mt." is not a zone and "America/New York" is
+  flagged; `context_truncated` no longer warns; deadlines and requirements are capped per document and extraction
+  is lazy (5 MB of dated text: 98 MB and 2.4 s, was about 600 MB and 10.5 s); the PDF worker adopts a lower hard
+  CPU limit and never imports from the current directory.

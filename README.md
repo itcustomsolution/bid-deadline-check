@@ -5,14 +5,15 @@ Read a government solicitation (RFP, RFQ, IFB; PDF or text) and get back:
 - **Deadlines** with date, time and **timezone exactly as written**: questions due, proposal due,
   revised/final proposals, registration, site visit, intent to bid, orals. Each date is bound only to
   the time and zone written with it, several deadlines on one line are all kept, and anything
-  unresolved (no time, no zone, "EOD", "midnight", an impossible date, a withdrawn date) is flagged
+  unresolved (no time, no zone, "EOD", "midnight", an impossible date, a date described as withdrawn,
+  cancelled, superseded or no longer in effect, a date taken from a "received after" clause) is flagged
 - **Page limits** per volume
 - **Format rules**: font, margins, paper size, spacing, file format
 - **Forms and clauses**: SF-1449, SF-33, SF-30, FAR 52.xxx, DFARS 252.xxx
 - **Sections and volumes** referenced (L, M, Volume I/II/III)
 - **"Shall / must" sentences** aimed at the offeror, found by keyword rules, including sentences
-  wrapped across lines. Up to 1000 characters they are kept whole; longer ones are shown as flagged
-  excerpts with their source lines, never silently cut
+  wrapped across lines. Up to 1000 characters they are kept whole; longer ones, and sentences interrupted
+  by a list-item or heading line, are shown as flagged excerpts with their source lines
 - A **compliance checklist** (text, JSON, CSV or Markdown)
 - **Warnings** for what is missing or needs a human check
 
@@ -52,11 +53,14 @@ the implemented checks fired:
 
 - a proposal due date and a questions-due date were found (and neither is negated or withdrawn);
 - every extracted deadline has a valid calendar date, a clock time (or "noon") and a timezone, all
-  bound to the same clause, with no "EOD"/"midnight"/close-of-business marker and no two-digit year;
+  bound to the same clause, with no "EOD"/"midnight"/close-of-business marker and no two-digit year,
+  and none is flagged as withdrawn, taken from a "received after" clause, of uncertain kind, or with a
+  possibly cut-short timezone;
 - no kind of deadline has two different values (for example an amended due date);
 - no requirement was reported as an excerpt;
 - page limits were found; and
-- the input decoded without replacement characters.
+- the input decoded without replacement characters, and extraction did not stop at its per-document
+  limits.
 
 It does **not** mean that every deadline or requirement in the document was found, that the extracted
 values are what the agency intended, that a timezone is valid, or that a submission would be timely.
@@ -75,8 +79,9 @@ rows = report.checklist()   # list of dicts: id, category, item, line, done
 
 `Deadline` has `kind`, `date`, `time`, `timezone`, `line`, `text` (the clause around the date),
 `end_line` and `ambiguities` (codes: `no_time`, `no_timezone`, `time_marker:<text>`, `invalid_date`,
-`invalid_time`, `two_digit_year`, `negated_or_withdrawn`, `context_truncated`,
-`statement_split_at_limit`). Each requirement is `{"text", "line", "end_line", "truncated"}`.
+`invalid_time`, `two_digit_year`, `negated_or_withdrawn`, `after_clause`, `kind_uncertain`,
+`timezone_unclear`, `statement_split_at_limit`, and `context_truncated`, which only says the `text`
+excerpt was shortened and raises no warning). Each requirement is `{"text", "line", "end_line", "truncated"}`.
 
 ## Scope and limits
 
@@ -88,18 +93,27 @@ rows = report.checklist()   # list of dicts: id, category, item, line, done
   re-ordered; two-digit years are flagged.
 - Signed UTC/GMT offsets (`UTC-04:00`), ISO offsets (`2026-11-05T17:00:00-04:00`) and IANA names
   (`America/New_York`) are kept exactly; IANA names are not checked against a timezone database.
-- Rules are keyword based. Obligations phrased without "shall", "must" or "is/are required to", or not
-  naming an offeror, contractor, quoter, vendor, bidder, proposal, response or submission, are not
-  listed. Wrapped lines are joined into one statement for at most 25 lines or 6000 characters; text
-  cut at that bound is flagged.
+- Rules are keyword based and match whole words, so "registered", "conference call", "questionnaire"
+  and "offeror" do not name a kind of deadline. When a clause names both a submission ("submit
+  proposals") and something else ("industry day", "registration"), the submission wins. A date is
+  bound to what is written with it in its own clause, or to a label on the line just above it.
+  Obligations phrased without "shall", "must" or "is/are required to", or not naming an offeror,
+  contractor, quoter, vendor, bidder, proposal, response or submission, are not listed. Wrapped lines
+  are joined into one statement for at most 25 lines or 6000 characters; text cut at that bound, or
+  interrupted by a list item or heading, is flagged.
 - Scanned PDFs without a text layer return no text. Run OCR first.
-- Limits: files and stdin over 50 MB are refused. PDFs over 1000 pages or over 5 million extracted
-  characters are refused (checked between pages). By default PDFs are parsed in a separate Python
-  process that is stopped after 65 s of wall-clock time and limited to 61 s of CPU time; where the
-  operating system allows it (normally Linux) its address space is also limited to 1 GiB. macOS does
-  not allow that memory limit (measured), and Windows has no CPU limit, so there only the wall-clock
-  stop applies. `read_document(path, isolate=False)` parses in-process with between-page checks only,
-  which do not bound a single slow page. Requires pypdf 6.21.0 or later.
+- Limits: files and stdin over 50 MB are refused. At most 2000 deadlines and 10000 requirements are
+  extracted per document; a warning says where extraction stopped. Measured on macOS (arm64), analysis
+  needs up to about 23 MB of memory and 1.8 s per MB of text (20 MB: 456 MB and 11 s for dense dated
+  text, 321 MB and 37 s for one-word lines), so a 50 MB input can need about 1.2 GB and 90 s.
+- PDFs over 1000 pages or over 5 million extracted characters are refused (checked between pages). By
+  default PDFs are parsed in a separate Python process that is stopped after 65 s of wall-clock time
+  and limited to 61 s of CPU time (or the environment's hard CPU limit, if lower); where the operating
+  system allows it (normally Linux) its address space is also limited to 1 GiB. macOS does not allow
+  that memory limit (measured), and Windows has no CPU limit, so there only the wall-clock stop
+  applies. The worker never imports from the current directory. A worker that crashes is reported as a
+  failure, not as a limit. `read_document(path, isolate=False)` parses in-process with between-page
+  checks only, which do not bound a single slow page. Requires pypdf 6.21.0 or later.
 - CSV output prefixes cells that start with `=`, `+`, `-`, `@`, tab or CR with `'`. This is a common
   mitigation for formula injection; it is not tested against any particular spreadsheet application.
 - Output contains solicitation text. Treat it as untrusted data if another program or an AI assistant
@@ -108,10 +122,9 @@ rows = report.checklist()   # list of dicts: id, category, item, line, done
 
 ## Development
 
-This candidate was verified locally with CPython 3.10, 3.11, 3.12 and 3.14 on macOS (arm64), from source
-and from the built wheel. Python 3.13, Linux and Windows were not run locally. The pull-request workflow
-is configured for Python 3.10, 3.12 and 3.14 on Linux, plus Python 3.14 on macOS; configured jobs are not
-executed by this change. Python 3.10 reached end of life on 2026-10-01 and remains the declared minimum.
+The pull-request workflow is configured for Python 3.10, 3.12 and 3.14 on Linux, plus Python 3.14 on
+macOS; configured jobs are not executed by this change. Python 3.10 reached end of life on 2026-10-01 and
+remains the declared minimum.
 
 ```bash
 python -m venv .venv && . .venv/bin/activate

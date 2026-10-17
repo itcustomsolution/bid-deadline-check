@@ -1,5 +1,6 @@
 """Regressions for BD-1..BD-5 and related observations from the 2026-10-16 audit. Synthetic text only."""
 import json
+import re
 import subprocess
 import sys
 import time
@@ -47,7 +48,9 @@ def strict(tmp_path, text):
     ("Proposals are due by 11:00 AM EDT on November 5, 2026.", [("proposal_due", "November 5, 2026", "11:00 AM", "EDT", [])]),
     ("Proposal Due Date:\nNovember 5, 2026 at 2:00 PM EST", [("proposal_due", "November 5, 2026", "2:00 PM", "EST", [])]),
     ("November 5, 2026 at 5:00 PM ET is the proposal due date.", [("proposal_due", "November 5, 2026", "5:00 PM", "ET", [])]),
-    ("Proposals received after November 5, 2026 at 5:00 PM ET will not be considered.", []),
+    # Reported, but flagged: often the only due-date sentence in an RFQ (independent review KB-08).
+    ("Proposals received after November 5, 2026 at 5:00 PM ET will not be considered.",
+     [("proposal_due", "November 5, 2026", "5:00 PM", "ET", ["after_clause"])]),
 ])
 def test_bd1_clause_binding(text, expected):
     assert deadlines(text) == [("questions_due", "October 1, 2026", "10:00 AM", "ET", [])] + expected
@@ -281,5 +284,29 @@ def test_worker_kill_and_crash_paths_are_limit_errors(monkeypatch, tmp_path):
     with pytest.raises(core.PdfLimitError, match="stopped"):
         core.read_document(f)
     monkeypatch.setattr(core.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a[0], -24, "", ""))
-    with pytest.raises(core.PdfLimitError, match="signal 24"):
+    with pytest.raises(core.PdfLimitError, match="CPU time limit"):
         core.read_document(f)
+    monkeypatch.setattr(core.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a[0], -9, "", ""))
+    with pytest.raises(core.PdfLimitError, match="signal 9"):
+        core.read_document(f)
+    # A worker that crashes is not reported as a limit (independent review KB-10).
+    monkeypatch.setattr(core.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a[0], 1, "", "Traceback ..."))
+    with pytest.raises(SystemExit, match="worker failed") as caught:
+        core.read_document(f)
+    assert not isinstance(caught.value, core.PdfLimitError)
+
+
+def test_readme_and_ci_matrix_agree_both_ways():
+    root = Path(__file__).resolve().parents[1]
+    names = {"ubuntu-latest": "Linux", "macos-latest": "macOS", "windows-latest": "Windows"}
+    workflow = (root / ".github/workflows/tests.yml").read_text()
+    readme = " ".join((root / "README.md").read_text().split())
+    configured = {(names[o], v) for o, v in re.findall(r"- os: (\S+)\s+python: '([0-9.]+)'", workflow)}
+    assert len(configured) >= 2
+    claim = re.search(r"pull-request workflow is configured for (.+?(?:Linux|macOS|Windows))[.;]", readme).group(1)
+    claimed = set()
+    for part in claim.split(", plus "):
+        platform = re.search(r" on (\w+)$", part).group(1)
+        claimed |= {(platform, v) for v in re.findall(r"\d+\.\d+", part)}
+    assert claimed == configured
+    assert "not executed by this change" in readme
