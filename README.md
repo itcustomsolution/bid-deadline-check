@@ -68,7 +68,8 @@ the implemented checks fired:
   `UTC+05:30junk` are read as `Z` and `UTC+05:30` and flagged);
 - no clause both names a deadline ("proposal due date", "closing time", "deadline", "time for receipt",
   "proposals are now due", an SF form block) and uses change wording ("extended", "postponed", "revised",
-  "altered", "adjusted", "brought forward", "revoked", "suspended", "slides", "now <date or time>", "new date",
+  "altered", "adjusted", "brought forward", "revoked", "suspended", "slid" or "slides one week", "now <date or
+  time>", "new date",
   "vice", "in place of", "rather than", ", not <date>", "(was <date>)", "formerly", "originally",
   "from ... to ...", and so on) without one of its dates being read as a
   replacement, and no clause without a date has change wording (or "now"), a deadline word and a clock
@@ -81,9 +82,10 @@ the implemented checks fired:
   later", a time written without a change word ("Amendment 0004: submit proposals by 3:00 PM ET."), "Offers
   due: TBD", a zone change ("Central Time, not Eastern Time") and a new date stated without change wording
   ("Proposals will be accepted until November 12, 2026 at 5:00 PM ET." beside the old one) give `--strict` 0
-  with only the old deadline, as does any other change verb the tool does not list. Of the last internal
-  review's 10 fresh revision sentences, 3 still pass `--strict` (5 did before this release); of its 30
-  harder revision sentences, 13 pass. Treat a clean `--strict` result as "no implemented check fired", never as
+  with only the old deadline, as does any other change verb the tool does not list ("deferred", "tolled",
+  "paused", "put back", "held in abeyance"). Of the r3 review's 10 fresh revision sentences, 3 still pass
+  `--strict` (5 did before this release); of its 30 harder revision sentences, 13 pass; of the r4 review's 18
+  fresh revision sentences, 9 pass. Treat a clean `--strict` result as "no implemented check fired", never as
   "no amendment changed a deadline"; and
 - the input decoded without replacement characters, and extraction did not stop at its per-document
   limits.
@@ -99,7 +101,10 @@ or document numbers that look like dates (`123/45/6789`); a period-of-performanc
 sentence names a date, time, receipt, submission, solicitation or any deadline kind (offers, questions,
 registration, site visit, and so on); an issue, amendment or announcement word between the deadline word and its
 date ("due on the date stated in Amendment 0002, November 12, 2026", "the due date was communicated to offerors
-on ..."); any other date in a deadline's sentence when that sentence
+on ..."; announcement verbs are a fixed list and count only in the past passive, "was publicized", "were
+delivered", "has been provided"); a clause that names a deadline and uses a change verb about something else
+("Prices may not be altered after the closing date", "Offerors whose registration is suspended or revoked on the
+proposal due date"), which made 8 of the r4 review's 18 fresh ordinary sentences fail; any other date in a deadline's sentence when that sentence
 has change wording ("new", "now", "updated", "extended", and so on), such as a performance period in the same
 sentence as an extended deadline; and any clause that names a deadline and uses change wording without a date read
 as a replacement, including hedged or hypothetical sentences: "Requests for extension of the proposal due date will

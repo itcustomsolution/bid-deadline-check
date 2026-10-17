@@ -148,9 +148,13 @@ WEAK_TRIGGER = re.compile(r"\b(?:submit(?:ted)?|received|delivered|by|before|pri
 ISSUANCE = re.compile(r"\b(?:issued|issue date|posted|released|published|dated|amend(?:ed|ment)|modified|effective|as of|awarded|signed)\b", re.I)
 # Issue or announcement words that may sit between a deadline word and a date that is not a deadline. Broader than
 # ISSUANCE, which also decides whether a date is skipped; "signed and dated" describes the submission, not an issue.
-ISSUE_AFTER = re.compile(rf"{ISSUANCE.pattern}|\b(?:sent|distributed|announced|went out|mailed|e-?mailed|circulated|transmitted"
-                         r"|publici[sz]ed|advertised|broadcast|communicated|made\s+public)\b"
-                         r"|\b(?:was|were|has\s+been|have\s+been|had\s+been)\s+(?:\w+\s+)?delivered\b", re.I)
+# Announcement verbs count only in the past passive ("the due date was publicized <date>", "notice ... was delivered
+# <date>"), so "as advertised", "will be made public" and "must have been delivered by <date>" stay deadlines. A fixed
+# list: other announcement wording is not read.
+ISSUE_AFTER = re.compile(rf"{ISSUANCE.pattern}|\b(?:sent|distributed|announced|went out|mailed|e-?mailed|circulated|transmitted)\b"
+                         r"|\b(?:was|were|has\s+been|had\s+been|(?<!must )(?<!should )(?<!shall )(?<!will )(?<!may )(?<!to )have\s+been)"
+                         r"\s+(?:\w+\s+)?(?:publici[sz]ed|advertised|broadcast|communicated|made\s+public|delivered|conveyed|disclosed"
+                         r"|notified|provided|shared|faxed)\b", re.I)
 SIGNED_AND_DATED = re.compile(r"\bsigned\s+and\s+dated\b|\bdated\s+and\s+signed\b", re.I)
 EFFECTIVE_END = re.compile(r"\b(?:effective|as of)\b[\s,:]*$", re.I)
 AFTER_WORD = re.compile(r"\bafter\b", re.I)
@@ -165,8 +169,10 @@ CONDITIONAL = re.compile(r"\b(?:unless|if|in the event)\b.*", re.I | re.S)
 # Something written where a zone would be, in a form TZ does not accept ("UTC+05:300", "America/A/B/C/D").
 TZ_LIKE = re.compile(r"[ \t,(]*(?:(?:UTC|GMT)\s?[+\u2212-]\s?\d|(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/)", re.I)
 # Amendments: "extended from <old> to <new>", "<old> is extended to <new>", "changed to <new>".
-_MORE_CHANGE = (r"alter(?:s|ed|ing)|adjust(?:s|ed|ing)|accelerat(?:es|ed|ing)|revok(?:es|ed|ing)|rescind(?:s|ed|ing)"
-                r"|suspend(?:s|ed|ing)|slid(?:es|ing)|slide|br(?:ought|ings?|inging)\s+forward")
+# Verb forms only. "slide" counts only before a shift ("slides one week", "slides back"), so presentation slides do not.
+_MORE_CHANGE = (r"(?:alter(?:s|ed|ing)|adjust(?:s|ed|ing)|accelerat(?:es|ed|ing)|revok(?:es|ed|ing)|rescind(?:s|ed|ing)"
+                r"|suspend(?:s|ed|ing)|slid(?:ing)?|slides?\s+(?:back|forward|out|by\s+(?:one|two|three|a|\d)|(?:one|two|three|a)\s+(?:week|day|month)|\d)"
+                r"|br(?:ought|ings|inging)\s+(?:\w+\s+){0,5}?forward)\b")
 CHANGE_VERB = rf"\b(?:(?:extend|extens|chang|mov|postpon|revis|amend|reschedul|delay|advanc|push|slip|shift)\w*|{_MORE_CHANGE})\b"
 # What names a deadline: "proposal due date", "closing time", "deadline", "time for receipt", "proposals are now due",
 # an SF form block.

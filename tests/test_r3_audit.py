@@ -104,3 +104,47 @@ def test_r3_dl_3_zone_glued_to_text_is_flagged(tmp_path, tail, zone):
 ])
 def test_r3_dl_3_zone_controls_stay_clean(tmp_path, tail):
     assert strict(tmp_path, BASE + tail) == 0
+
+
+# r4 review (kofi): the r4 verb list missed "slid" and "brings ... forward"; "slides" the noun and some announcement
+# words in ordinary text raised false alarms. The cases are the reviewer's.
+@pytest.mark.parametrize("tail", [
+    "The proposal due date slid by one week.",                                  # M01
+    "Amendment 0002 brings the proposal due date forward by two days.",          # M18
+    "The proposal due date slides back to November 3, 2026.",
+])
+def test_r4_review_revisions_now_fail(tmp_path, tail):
+    assert strict(tmp_path, BASE + COMPLETE + tail) == 2
+
+
+@pytest.mark.parametrize("tail", [
+    "The proposal due date was conveyed to offerors October 2, 2026 at 5:00 PM ET.",                       # S01
+    "The notice of the proposal due date was provided to offerors October 2, 2026 at 5:00 PM ET.",         # S02
+    "The proposal due date was shared with industry on October 2, 2026 at 5:00 PM ET.",                    # S03
+    "The notice about the proposal due date was faxed October 2, 2026 at 5:00 PM ET.",                     # S05
+    "The proposal due date was disclosed October 2, 2026 at 5:00 PM ET.",                                  # S07
+])
+def test_r4_review_announcement_siblings_are_flagged(tmp_path, tail):
+    assert strict(tmp_path, BASE + tail) == 2
+
+
+@pytest.mark.parametrize("tail", [
+    "Presentation slides must be submitted with the proposal by the proposal due date.",                    # C01
+    "Oral presentations are limited to 15 slides and will be scheduled after the closing date.",             # C02
+    "Offerors are encouraged to bring forward any questions well before the question deadline.",             # C07
+    "Submit presentation slides by the proposal due date.",
+])
+def test_r4_review_slides_and_bring_forward_controls_stay_clean(tmp_path, tail):
+    assert strict(tmp_path, BASE + COMPLETE + tail) == 0
+
+
+@pytest.mark.parametrize("tail, date", [
+    ("The bid due date, as advertised in the legal notice, is November 5, 2026 at 5:00 PM ET.", "November 5, 2026"),        # C11
+    ("Hand-carried proposals due under this RFQ must have been delivered to the mailroom by November 5, 2026 at 5:00 PM ET.",
+     "November 5, 2026"),                                                                                                  # C13
+    ("Proposals are due November 5, 2026 at 5:00 PM ET; bid tabulations will be made public after the bid due date.", "November 5, 2026"),
+])
+def test_r4_review_announcement_words_in_ordinary_text_stay_clean(tmp_path, tail, date):
+    r = analyze(BASE + tail)
+    assert any(d == date and a == [] for d, t, z, a in proposals(r)), proposals(r)
+    assert strict(tmp_path, BASE + tail) == 0
