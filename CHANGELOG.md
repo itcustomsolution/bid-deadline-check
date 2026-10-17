@@ -106,9 +106,10 @@ later is required, and the PDF extra needs pypdf 6.21.1 or later.
   fraction is flagged `timezone_unclear` instead of being shortened (R4-DL-3). The pdf and dev extras need pypdf
   6.21.1 or later, the first release with the fix for GHSA-5hx5-vpf9-5wcv; this tool's text path does not reach the
   affected image conversion (R4-SC-01). README says only the first zone written for a time is read and that
-  `--strict` is an extraction aid, not a safety gate. After the internal r5 review (KR5-01..05): the new malformed forms no longer report
-  solicitation, bid, version and paragraph numbers or lists of days (an ISO form needs exactly one component of the
-  wrong length, year-first forms a two-digit month and day, or a deadline word on the line for a one-digit one);
+  `--strict` is an extraction aid, not a safety gate. After the internal r5 review (KR5-01..05): the new malformed forms report fewer
+  solicitation, bid, version and paragraph numbers and lists of days (an ISO form needs exactly one component of the
+  wrong length, year-first forms a two-digit month and day, or one of the listed deadline words on the same line for a
+  one-digit one); README lists the numbers still reported and the forms no longer screened;
   "12 November, 2026" is read as a date, and "November,12,2026", "Nov-12-2026" and a date followed by more slash parts
   are reported; a month name matched only by case folding ("ſeptember") is `invalid_date` instead of raising; a zone
   name followed by a fraction ("Etc/GMT+5.5") is `timezone_unclear`.

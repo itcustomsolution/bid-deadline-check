@@ -64,14 +64,17 @@ the implemented checks fired:
 - page limits were found;
 - no date-like value was found in one of the unsupported forms the tool screens: `111/05/2026`,
   `5November 2026`, `November 12,2026`, `12-NOV-2026`, `11-12-2026`, `Nov-12-2026`, `03 NOV 26`,
-  `November 12, 26` (not when a list continues, as in "November 3, 10 and 17"), `November, 12, 2026` and
-  `November,12,2026`, an ISO date with one component of the wrong length (`2026-11-005`, `2026-111-05`,
-  `20260-11-05`), a year-first date with `/` or `.` and a two-digit month and day (`2026/11/12`) or, on a line with
-  a deadline word ("due", "deadline", "closing", "no later than" and similar), a one-digit month or day
-  (`2026-11-5`), `12.11.2026` (not after a letter or a dot), a date followed by more slash parts
-  (`11/12/2026/2027`), or a letter typed for a digit as in `2O26` or `November l2, 2026`. Only these forms are
-  screened, and in the ISO, year-first and dotted forms the year must look like 19xx or 20xx; other forms, such as
-  `12.11.26`, are not, and one of them beside a valid deadline disappears. No deadline's date or zone runs into the text after it
+  `November 12, 26` (not when the two-digit year is followed by "and", "or", "through", "thru", "to", "&", "-" or
+  an en dash, as in "November 3, 10 and 17" or "November 12, 26 - 5:00 PM"), `November, 12, 2026` and
+  `November,12,2026`, an ISO date with exactly one component of the wrong length (`2026-11-005`, `2026-111-05`,
+  `20260-11-05`; not `2026-111-005`), a year-first date with `/` or `.` whose month (01 to 12) and day (01 to 31)
+  have two digits each (`2026/11/12`; not `2026.13.05`), a year-first date with a one-digit month or day
+  (`2026-11-5`) only on a line that itself contains "due", "deadline", "no later than", "not later than", "NLT",
+  "closing", "closes", "close", "closed", "on or before" or "cut-off" (so not "received by 2026-11-5", and not when
+  that word ends the previous line), `12.11.2026` (not directly after a letter, digit, `_` or dot), a date followed by
+  more slash parts (`11/12/2026/2027`), or a letter typed for a digit as in `2O26` or `November l2, 2026`. Only these
+  forms are screened, and in the ISO, year-first and dotted forms the year must look like 19xx or 20xx; other forms,
+  such as `12.11.26`, are not, and one of them beside a valid deadline disappears. No deadline's date or zone runs into the text after it
   (`November 5, 2026x` and `November 5, 2026_draft` are read as November 5 and flagged; `17:00:00Zdraft` and
   `UTC+05:30junk` are read as `Z` and `UTC+05:30` and flagged);
 - no clause both names a deadline ("proposal due date", "closing time", "deadline", "time for receipt",
@@ -108,7 +111,8 @@ Known cases where `--strict` fails although nothing is wrong: the same time rest
 sentence ("; hand-carried proposals are accepted between 8:00 AM and 4:00 PM ET"); and slash-separated part
 or document numbers that look like dates (`123/45/6789`); other numbers written like one of the screened
 malformed dates (`Version 1.2.2026`, "In May, 12 2026 vehicles were inspected", a solicitation number such as
-`2026-111-05`, and on a line with a deadline word one such as `RFP 2026-1-05`); a period-of-performance or validity change whose
+`2026-111-05`, a part or lot number written like a month-day-year date such as `JUN-12-1234`, and on a line with
+one of the deadline words above one such as `RFP 2026-1-05`); a period-of-performance or validity change whose
 sentence names a date, time, receipt, submission, solicitation or any deadline kind (offers, questions,
 registration, site visit, and so on); an issue, amendment or announcement word between the deadline word and its
 date ("due on the date stated in Amendment 0002, November 12, 2026", "the due date was communicated to offerors
