@@ -878,7 +878,7 @@ def analyze(text: str) -> Report:
 
     prev: _Statement | None = None
     capped = []
-    time_changes: list[int] = []  # lines of sentences that change a deadline's time without giving a date
+    time_changes: list[int] = []  # lines of clauses with change wording, a deadline word and a time, but no date
     for st in _statements(lines):
         pos = 0
         for sent in iter_sentences(st.text):
@@ -969,9 +969,9 @@ def analyze(text: str) -> Report:
     if malformed > MAX_MALFORMED_WARNINGS:
         r.warnings.append(f"{malformed - MAX_MALFORMED_WARNINGS} more date-like values in unsupported forms are not listed.")
     for i in time_changes[:MAX_MALFORMED_WARNINGS]:
-        r.warnings.append(f"Line {i} changes a time without a date; confirm which deadline it amends and its new cutoff.")
+        r.warnings.append(f"Line {i} has change wording and a time but no date; confirm which deadline it changes and its cutoff.")
     if len(time_changes) > MAX_MALFORMED_WARNINGS:
-        r.warnings.append(f"{len(time_changes) - MAX_MALFORMED_WARNINGS} more sentences that change a time without a date are not listed.")
+        r.warnings.append(f"{len(time_changes) - MAX_MALFORMED_WARNINGS} more clauses with change wording and a time but no date are not listed.")
     if "\ufffd" in text:
         r.warnings.append("Input contains U+FFFD replacement characters (undecodable bytes or a lossy conversion); some text may be missing.")
     if not r.page_limits:

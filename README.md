@@ -63,7 +63,7 @@ the implemented checks fired:
 - page limits were found;
 - no date-like value was found in a form the tool does not read (for example `111/05/2026`,
   `November 5, 2026x`, `5November 2026` or a year typed as `2O26`);
-- no sentence changes a time without giving a date ("The closing time is now 3:00 PM ET."); and
+- no clause has change wording, a deadline word and a time but no date ("The closing time is now 3:00 PM ET."); and
 - the input decoded without replacement characters, and extraction did not stop at its per-document
   limits.
 

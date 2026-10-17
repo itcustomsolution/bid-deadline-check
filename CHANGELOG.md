@@ -70,4 +70,5 @@ later is required, and the PDF extra needs pypdf 6.21.0 or later.
   ("the proposal due date was issued <date>") is flagged `issue_date_possible` (R2-DL-2); fractional seconds compare
   without trailing zeros (R2-DL-3); a date glued to letters ("November 5, 2026oops"), a digit glued to a month name
   and a year typed with a letter are reported as date-like values instead of being read as clean dates (R2-DL-4);
-  a sentence that changes a time without a date warns.
+  a clause with change wording, a deadline word and a time but no date warns (it may also fire beside a dated
+  deadline, as in "; revised proposals at 6:00 PM ET").
