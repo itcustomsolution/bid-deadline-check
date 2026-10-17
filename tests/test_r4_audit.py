@@ -94,3 +94,47 @@ def test_r4_sc_01_pdf_text_path_does_not_convert_images(tmp_path):
     assert res["text_found"]
     assert res["calls_during_text_extraction"] == {"xobj_to_image": 0, "Image.open": 0}
     assert res["calls_after_images_control"]["xobj_to_image"] >= 1, "the control must reach the conversion"
+    assert res["calls_after_images_control"]["Image.open"] >= 1, "the control must reach Pillow's open"
+
+
+# Internal r5 review (KR5-01..05, review/r5-kofi/REPORT.md). These fail on the r5 commit 54808d0, except the controls.
+@pytest.mark.parametrize("value", ["November,12,2026", "November , 12, 2026", "Nov-12-2026", "11/05/2026/11/12/2026"])
+def test_kr5_01_more_malformed_dates_are_reported(tmp_path, value):
+    text = BASE + OLD + f"Proposals due {value} at 5:00 PM ET."
+    assert any("date-like value" in w and "line 4" in w.lower() for w in analyze(text).warnings), analyze(text).warnings
+    assert strict(tmp_path, text) == 2
+
+
+# Control: r5 reported these through the broad forms that KR5-02 narrows; on a line with a deadline word they still are.
+@pytest.mark.parametrize("value", ["2026-11-5", "2026/1/15", "2026.11.5"])
+def test_kr5_02_control_one_digit_year_first_dates_on_a_deadline_line(tmp_path, value):
+    assert strict(tmp_path, BASE + OLD + f"Proposals due {value} at 5:00 PM ET.") == 2
+
+
+def test_kr5_01_day_month_comma_year_is_read(tmp_path):
+    r = analyze(BASE + OLD + "Proposals due 12 November, 2026 at 5:00 PM ET.")
+    assert ("12 November, 2026", "5:00 PM", "ET") in [(d, t, z) for d, t, z, a in proposals(r)]
+    assert strict(tmp_path, BASE + "Proposals due Thursday, 5 November, 2026 at 5:00 PM ET.") == 0
+
+
+@pytest.mark.parametrize("tail", ["Site visits are held on November 3, 10 and 17, 2026.",
+                                  "Oral presentations are scheduled for May 4, 11 and 18.",
+                                  "Install IntelliJ IDEA 2024.1.2 or later.", "Tableau v2023.3.1 is required.",
+                                  "Solicitation No. 2026-100-001 applies.", "Refer to RFP 2026-1-05 for scope.",
+                                  "Bid No. 2025-12-1 covers road salt.", "Paragraph L.3.2.2019 applies.",
+                                  "Statute 2001.3.1 applies.", "Use release 2024.10.1."])
+def test_kr5_02_identifiers_and_lists_are_not_malformed_dates(tmp_path, tail):
+    assert strict(tmp_path, BASE + OLD + tail) == 0
+
+
+def test_kr5_03_month_matched_only_by_case_folding_fails_closed(tmp_path):
+    text = BASE + "Proposals due ſeptember 5, 2026 at 5:00 PM ET."
+    assert any("invalid_date" in a for d, t, z, a in proposals(analyze(text))), proposals(analyze(text))
+    assert strict(tmp_path, text) == 2
+
+
+def test_kr5_04_zone_name_with_fraction_is_unclear(tmp_path):
+    text = BASE + "Proposals due November 5, 2026 at 17:00 Etc/GMT+5.5."
+    assert any("timezone_unclear" in a for d, t, z, a in proposals(analyze(text))), proposals(analyze(text))
+    assert strict(tmp_path, text) == 2
+    assert strict(tmp_path, BASE + "Proposals due November 5, 2026 at 17:00 Etc/GMT+5.") == 0

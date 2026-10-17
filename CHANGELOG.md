@@ -17,7 +17,7 @@ later is required, and the PDF extra needs pypdf 6.21.1 or later.
 - BD-4: requirement sentences wrapped across lines are joined; sentences are no longer split at abbreviations or
   inside numbers like `52.212-1`; requirements up to 1000 characters are kept whole and longer ones are reported as
   flagged excerpts with source lines instead of being cut or dropped.
-- BD-5: pypdf floor raised to 6.21.0. PDFs are parsed by default in a separate process with a wall-clock stop, a
+- BD-5: pypdf floor raised to 6.21.0 (6.21.1 since 0.2.0rc5, GHSA-5hx5-vpf9-5wcv). PDFs are parsed by default in a separate process with a wall-clock stop, a
   CPU-time limit and, where the OS allows it, a memory limit. `read_document(path, isolate=False)` keeps the old
   in-process behavior.
 - A missing or unreadable input file is a one-line error (exit 1) instead of a traceback; text containing U+FFFD
@@ -106,4 +106,9 @@ later is required, and the PDF extra needs pypdf 6.21.1 or later.
   fraction is flagged `timezone_unclear` instead of being shortened (R4-DL-3). The pdf and dev extras need pypdf
   6.21.1 or later, the first release with the fix for GHSA-5hx5-vpf9-5wcv; this tool's text path does not reach the
   affected image conversion (R4-SC-01). README says only the first zone written for a time is read and that
-  `--strict` is an extraction aid, not a safety gate.
+  `--strict` is an extraction aid, not a safety gate. After the internal r5 review (KR5-01..05): the new malformed forms no longer report
+  solicitation, bid, version and paragraph numbers or lists of days (an ISO form needs exactly one component of the
+  wrong length, year-first forms a two-digit month and day, or a deadline word on the line for a one-digit one);
+  "12 November, 2026" is read as a date, and "November,12,2026", "Nov-12-2026" and a date followed by more slash parts
+  are reported; a month name matched only by case folding ("ſeptember") is `invalid_date` instead of raising; a zone
+  name followed by a fraction ("Etc/GMT+5.5") is `timezone_unclear`.

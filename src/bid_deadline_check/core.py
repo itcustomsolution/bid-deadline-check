@@ -19,7 +19,7 @@ MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|A
 # ("2027-01-01/2027-06-30"). One gate in front of every form keeps the pattern from trying each month name inside
 # each word.
 _DATE_GATE = r"(?:(?<![A-Za-z\d/])|(?-i:(?<=[a-z])(?=[A-Z]))|(?<=[A-Za-z])(?=\d)|(?<=\d/)(?=\d{4}-))"  # last: ISO interval end
-_NAMED_DATE = rf"{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{4}}"
+_NAMED_DATE = rf"{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS},?\s+\d{{4}}"
 # A date running into letters ("November 5, 2026oops") is still read; the deadline is flagged date_glued_to_text.
 DATE = (
     rf"{_DATE_GATE}(?:(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s+)?"
@@ -29,6 +29,7 @@ DATE = (
 # a month name ("5November 2026", "November5, 2026", "November 12th2026"), no space after the comma ("November 12,2026"),
 # a letter typed for a digit ("2O26", "November l2, 2026", "11/O3/2026", "2O26-11-03"), dashed forms ("12-NOV-2026",
 # "11-12-2026") and a two-digit year after a month name ("03 NOV 26").
+_MM, _DD = r"(?:0[1-9]|1[0-2])", r"(?:0[1-9]|[12]\d|3[01])"
 _LETTER_YEAR = r"(?=[\dOoIl]{4}(?![A-Za-z\d]))(?!\d{4})[\dOoIl]{4}"
 _HAS_LETTER = r"(?=[\dOoIl/\-]{0,9}[OoIl])"  # a letter within the token's ten characters; bounded, so runs stay linear
 MALFORMED_DATE = (
@@ -40,14 +41,17 @@ MALFORMED_DATE = (
     rf"|{MONTHS}\s+(?=[\dOoIl]{{1,2}}(?![\w]))(?!\d{{1,2}}(?![\w]))[\dOoIl]{{1,2}},?\s+\d{{4}}(?!\d)"
     rf"|{_HAS_LETTER}[\dOoIl]{{4}}-[\dOoIl]{{2}}-[\dOoIl]{{2}}(?![\w-])|{_HAS_LETTER}[\dOoIl]{{1,2}}/[\dOoIl]{{1,2}}/[\dOoIl]{{2,4}}(?![\w/])"
     rf"|\d{{1,2}}-{MONTHS}-\d{{2,4}}(?![\w-])|\d{{1,2}}-\d{{1,2}}-\d{{4}}(?![\w-])|\d{{1,2}}\s+{MONTHS}\s+\d{{2}}(?![\w])"
-    # An ISO date with a component of the wrong length ("2026-11-005", "2026-111-05", "20260-11-05"), a year-first date
-    # with "/" or "." ("2026/11/12"), a day-month-year with dots ("12.11.2026"), an extra slash part ("11/12/2026/2027"),
-    # a named date with a two-digit year ("November 12, 26") or a comma after the month ("November, 12, 2026"). The year
-    # must look like one (19xx or 20xx), so section, part and paragraph numbers are not reported.
-    rf"|(?!\d{{4}}-\d{{2}}-\d{{2}}(?![\w-]))(?:19|20)\d{{2,3}}-\d{{1,3}}-\d{{1,3}}(?![\w-])"
-    rf"|(?:19|20)\d{{2}}/\d{{1,2}}/\d{{1,2}}(?![\w/]|\.\d)|(?:19|20)\d{{2}}\.\d{{1,2}}\.\d{{1,2}}(?![\w]|\.\d)"
-    rf"|\d{{1,2}}\.\d{{1,2}}\.(?:19|20)\d{{2}}(?![\w]|\.\d)|\d{{1,2}}/\d{{1,2}}/\d{{4}}/\d{{1,4}}(?![\w/])"
-    rf"|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,\s*\d{{2}}(?![\w,]|\.\d)|{MONTHS},\s*\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}(?!\d))"
+    # An ISO date with exactly one component of the wrong length ("2026-11-005", "2026-111-05", "20260-11-05"), a
+    # year-first date with "/" or "." and a two-digit month and day ("2026/11/12"), a day-month-year with dots not after
+    # a letter or dot ("12.11.2026"), a date followed by another slash part ("11/12/2026/2027"), a named date with a
+    # two-digit year that does not continue a list ("November 12, 26", not "November 3, 10 and 17"), a comma after the
+    # month ("November, 12, 2026", "November,12,2026") and month-day-year with dashes ("Nov-12-2026"). The year must
+    # look like one (19xx or 20xx), so solicitation, version, section and paragraph numbers are not reported.
+    rf"|(?:19|20)\d{{2}}-(?:\d{{3}}-\d{{2}}|\d{{2}}-\d{{3}})(?![\w-])|(?:19|20)\d{{3}}-\d{{2}}-\d{{2}}(?![\w-])"
+    rf"|(?:19|20)\d{{2}}/{_MM}/{_DD}(?![\w/]|\.\d)|(?:19|20)\d{{2}}\.{_MM}\.{_DD}(?![\w]|\.\d)"
+    rf"|(?<![\w.])\d{{1,2}}\.\d{{1,2}}\.(?:19|20)\d{{2}}(?![\w]|\.\d)|\d{{1,2}}/\d{{1,2}}/\d{{4}}(?:/\d+)+"
+    rf"|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,\s*\d{{2}}(?![\w,]|\.\d)(?!\s*(?:(?:and|or|through|thru|to)\b|&|[-\u2013]))"
+    rf"|{MONTHS}\s*,\s*\d{{1,2}}(?:st|nd|rd|th)?\s*,?\s*\d{{4}}(?!\d)|{MONTHS}-\d{{1,2}}-\d{{2,4}}(?![\w-]))"
     # A digit glued to a month name, but not inside a longer token such as a part number ("47QTCA22D00MAR 2026").
     rf"|(?<![A-Za-z\d])\d{{1,2}}(?:st|nd|rd|th)?{MONTHS}\s*\d{{4}}(?!\d)"
 )
@@ -61,7 +65,7 @@ TIME = (rf"(?<![\d:.])(?:\d{{1,2}}(?::\d{{2}}){{0,2}}\s*{AMPM}"
 TIME_MARKER = r"\b(?:midnight|EOD|COB|EOB|end of (?:the )?(?:business )?day|close of (?:the )?business(?: day)?|end of business)\b"
 # Longer forms first, so "UTC-04:00" is never reported as "UTC" and IANA names are kept whole.
 # A zone must end at a token boundary, so "UTC+05:300" or a four-part IANA name never becomes a shorter valid one.
-TZ = (r"\b(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/[A-Za-z][A-Za-z0-9_+\-]{0,30}(?:/[A-Za-z][A-Za-z0-9_+\-]{0,30})?(?![A-Za-z0-9_+\-/])"
+TZ = (r"\b(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/[A-Za-z][A-Za-z0-9_+\-]{0,30}(?:/[A-Za-z][A-Za-z0-9_+\-]{0,30})?(?![A-Za-z0-9_+\-/]|\.\d)"
       r"|\b(?:UTC|GMT)\s?[+\u2212-]\s?\d{1,2}(?::?\d{2})?(?![\d:]|\.\d)"
       r"|\b(?:Eastern|Central|Mountain|Pacific|Alaska|Hawaii)(?:\s+(?:Standard|Daylight|Prevailing))?\s+Time\b"
       r"|(?-i:\b(?:E|C|M|P|AK|H)[SD]?T\b)|\b(?:UTC|GMT)\b(?!\s?[+\u2212-]\s?\d)|\bZulu\b|\blocal time\b")
@@ -127,6 +131,11 @@ SUBJECT_RE = re.compile(r"(Volume\s+[IVX\d]{1,6}[^,.;]{0,60}?|Technical[^,.;]{0,
 
 DATE_RE = re.compile(DATE, re.I)
 MALFORMED_DATE_RE = re.compile(MALFORMED_DATE, re.I)
+# A year-first date with a one-digit month or day ("2026-11-5", "2026/1/15", "2026.11.5") is written like solicitation,
+# bid and version numbers too ("Bid No. 2025-12-1", "release 2024.1.2"), so it is reported only on a line with a
+# deadline word (STRONG_TRIGGER).
+MALFORMED_NEAR_DEADLINE_RE = re.compile(
+    rf"{_DATE_GATE}(?:19|20)\d{{2}}(?:-(?:\d-\d{{1,2}}|\d{{2}}-\d)|/(?:\d/\d{{1,2}}|\d{{2}}/\d)|\.(?:\d\.\d{{1,2}}|\d{{2}}\.\d))(?![\w/]|[-.]\d)")
 DATE_START = re.compile(rf"\s*(?:{DATE})", re.I)
 MAX_DEADLINES = 2000      # per document; beyond this extraction stops and says so
 MAX_OTHER_TIMES = 5       # other times recorded per deadline
@@ -589,9 +598,11 @@ def _date_parts(date: str):
     """(year, month, day) as written, "two_digit_year", or None if the form is not recognized."""
     s = re.sub(r"^(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s+", "", date, flags=re.I)
     if (m := re.fullmatch(r"([A-Za-z]+)\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})", s, re.I)):
-        return int(m.group(3)), _MONTH_NUM[m.group(1)[:3].lower()], int(m.group(2))
-    if (m := re.fullmatch(r"(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\.?\s+(\d{4})", s, re.I)):
-        return int(m.group(3)), _MONTH_NUM[m.group(2)[:3].lower()], int(m.group(1))
+        mo = _MONTH_NUM.get(m.group(1)[:3].lower())  # None for a name matched only by case folding ("ſeptember")
+        return (int(m.group(3)), mo, int(m.group(2))) if mo else None
+    if (m := re.fullmatch(r"(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\.?,?\s+(\d{4})", s, re.I)):
+        mo = _MONTH_NUM.get(m.group(2)[:3].lower())
+        return (int(m.group(3)), mo, int(m.group(1))) if mo else None
     if (m := re.fullmatch(r"(\d{1,2})/(\d{1,2})/(\d{2,4})", s)):
         return "two_digit_year" if len(m.group(3)) != 4 else (int(m.group(3)), int(m.group(1)), int(m.group(2)))
     if (m := re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", s)):
@@ -1053,7 +1064,8 @@ def analyze(text: str) -> Report:
     r.warnings += capped
     malformed = 0
     for i, raw in enumerate(lines, 1):
-        for m in MALFORMED_DATE_RE.finditer(raw):
+        near = MALFORMED_NEAR_DEADLINE_RE.finditer(raw) if STRONG_TRIGGER.search(raw) else ()
+        for m in [*MALFORMED_DATE_RE.finditer(raw), *near]:
             malformed += 1
             if malformed <= MAX_MALFORMED_WARNINGS:
                 r.warnings.append(f"Line {i} has a date-like value in a form this tool does not read (\"{_norm_ws(m.group(0))[:40]}\"); check it in the source.")

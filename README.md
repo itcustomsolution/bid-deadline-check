@@ -52,8 +52,8 @@ WARNINGS
 the implemented checks fired:
 
 - a proposal due date and a questions-due date were found (and neither is negated or withdrawn);
-- every extracted deadline has a valid calendar date (a date the tool extracts but cannot check, such as an
-  ordinal it does not parse, is flagged `invalid_date`), a clock time (or "noon") and a timezone, all
+- every extracted deadline has a valid calendar date (a date the tool extracts but cannot check against the
+  calendar is flagged `invalid_date`), a clock time (or "noon") and a timezone, all
   bound to the same clause, with no "EOD"/"midnight"/close-of-business marker and no two-digit year,
   and none is flagged as withdrawn or superseded, as replacing an earlier date, as possibly an issue
   date, as sharing its sentence with another clock time or with a date not read as a deadline in a
@@ -62,11 +62,16 @@ the implemented checks fired:
 - no kind of deadline has two different values (for example an amended due date);
 - no requirement was reported as an excerpt;
 - page limits were found;
-- no date-like value was found in a form the tool does not read (for example `111/05/2026`,
-  `5November 2026`, `November 12,2026`, `12-NOV-2026`, `11-12-2026`, `03 NOV 26`, `November 12, 26`,
-  `November, 12, 2026`, an ISO date with a component of the wrong length such as `2026-11-005`, a year-first
-  date with `/` or `.`, `12.11.2026`, `11/12/2026/2027`, or a letter typed for a digit as in `2O26` or
-  `November l2, 2026`; only these listed forms are screened, and a year must look like 19xx or 20xx), and no deadline's date or zone runs into the text after it
+- no date-like value was found in one of the unsupported forms the tool screens: `111/05/2026`,
+  `5November 2026`, `November 12,2026`, `12-NOV-2026`, `11-12-2026`, `Nov-12-2026`, `03 NOV 26`,
+  `November 12, 26` (not when a list continues, as in "November 3, 10 and 17"), `November, 12, 2026` and
+  `November,12,2026`, an ISO date with one component of the wrong length (`2026-11-005`, `2026-111-05`,
+  `20260-11-05`), a year-first date with `/` or `.` and a two-digit month and day (`2026/11/12`) or, on a line with
+  a deadline word ("due", "deadline", "closing", "no later than" and similar), a one-digit month or day
+  (`2026-11-5`), `12.11.2026` (not after a letter or a dot), a date followed by more slash parts
+  (`11/12/2026/2027`), or a letter typed for a digit as in `2O26` or `November l2, 2026`. Only these forms are
+  screened, and in the ISO, year-first and dotted forms the year must look like 19xx or 20xx; other forms, such as
+  `12.11.26`, are not, and one of them beside a valid deadline disappears. No deadline's date or zone runs into the text after it
   (`November 5, 2026x` and `November 5, 2026_draft` are read as November 5 and flagged; `17:00:00Zdraft` and
   `UTC+05:30junk` are read as `Z` and `UTC+05:30` and flagged);
 - no clause both names a deadline ("proposal due date", "closing time", "deadline", "time for receipt",
@@ -101,7 +106,9 @@ on some ordinary sentences (see below). Read the solicitation and every amendmen
 Known cases where `--strict` fails although nothing is wrong: the same time restated in another zone
 ("5:00 PM ET (2:00 PM PT)"), because the tool does not convert zones; office hours in the deadline's
 sentence ("; hand-carried proposals are accepted between 8:00 AM and 4:00 PM ET"); and slash-separated part
-or document numbers that look like dates (`123/45/6789`); a period-of-performance or validity change whose
+or document numbers that look like dates (`123/45/6789`); other numbers written like one of the screened
+malformed dates (`Version 1.2.2026`, "In May, 12 2026 vehicles were inspected", a solicitation number such as
+`2026-111-05`, and on a line with a deadline word one such as `RFP 2026-1-05`); a period-of-performance or validity change whose
 sentence names a date, time, receipt, submission, solicitation or any deadline kind (offers, questions,
 registration, site visit, and so on); an issue, amendment or announcement word between the deadline word and its
 date ("due on the date stated in Amendment 0002, November 12, 2026", "the due date was communicated to offerors
