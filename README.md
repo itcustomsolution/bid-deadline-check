@@ -54,11 +54,13 @@ the implemented checks fired:
 - a proposal due date and a questions-due date were found (and neither is negated or withdrawn);
 - every extracted deadline has a valid calendar date, a clock time (or "noon") and a timezone, all
   bound to the same clause, with no "EOD"/"midnight"/close-of-business marker and no two-digit year,
-  and none is flagged as withdrawn, taken from a "received after" clause, of uncertain kind, or with a
-  possibly cut-short timezone;
+  and none is flagged as withdrawn or superseded, as replacing an earlier date, as sharing its sentence
+  with another clock time, as taken from a "received after" clause, as of uncertain kind, or as having
+  an unclear or unsupported timezone;
 - no kind of deadline has two different values (for example an amended due date);
 - no requirement was reported as an excerpt;
 - page limits were found; and
+- no date-like value was found in a form the tool does not read (for example `111/05/2026`); and
 - the input decoded without replacement characters, and extraction did not stop at its per-document
   limits.
 
@@ -79,9 +81,11 @@ rows = report.checklist()   # list of dicts: id, category, item, line, done
 
 `Deadline` has `kind`, `date`, `time`, `timezone`, `line`, `text` (the clause around the date),
 `end_line` and `ambiguities` (codes: `no_time`, `no_timezone`, `time_marker:<text>`, `invalid_date`,
-`invalid_time`, `two_digit_year`, `negated_or_withdrawn`, `after_clause`, `kind_uncertain`,
-`timezone_unclear`, `statement_split_at_limit`, and `context_truncated`, which only says the `text`
-excerpt was shortened and raises no warning). Each requirement is `{"text", "line", "end_line", "truncated"}`.
+`invalid_time`, `two_digit_year`, `negated_or_withdrawn`, `replaces_earlier_date` (the new date of an
+"extended/changed/moved from ... to ..." amendment), `other_time:<text>` (another clock time in the same
+sentence, at most five), `after_clause`, `kind_uncertain`, `timezone_unclear` (a zone that may be cut
+short or is in an unsupported form, such as `UTC+05:30:15`), `statement_split_at_limit`, and
+`context_truncated`, which only says the `text` excerpt was shortened and raises no warning). Each requirement is `{"text", "line", "end_line", "truncated"}`.
 
 ## Scope and limits
 

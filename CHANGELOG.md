@@ -38,3 +38,11 @@ later is required, and the PDF extra needs pypdf 6.21.0 or later.
   flagged; `context_truncated` no longer warns; deadlines and requirements are capped per document and extraction
   is lazy (5 MB of dated text: 98 MB and 2.4 s, was about 600 MB and 10.5 s); the PDF worker adopts a lower hard
   CPU limit and never imports from the current directory.
+- Independent re-audit fixes (2026-10-17): an "extended/changed/moved/postponed from <old> to <new>" or "<old> is
+  extended to <new>" amendment reports both dates, the old one `negated_or_withdrawn` and the new one
+  `replaces_earlier_date` (RBD-1); another clock time in a deadline's sentence ("changed to 6:00 PM ET", "3:00 PM ET
+  for hand delivery", after a semicolon) is recorded as `other_time:<text>` and warns (RBD-2); duplicate comparison
+  includes seconds (RBD-3); an obligation interrupted by a colon-led list or a blank line is flagged as an excerpt
+  (RBD-4); dates and zones must be whole tokens, so `111/05/2026`, `20260`, `UTC+05:300` and four-part IANA names
+  are flagged instead of shortened into valid-looking values (RBD-5). A later date in a triggered clause that has
+  its own time is reported (for example a hand-carried-copy cutoff in parentheses).

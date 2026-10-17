@@ -1,6 +1,7 @@
 """Rule-based extraction. No network, no LLM."""
 from __future__ import annotations
 
+import bisect
 import calendar
 import itertools
 import json
@@ -11,12 +12,18 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
 MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?"
+# A date must be a whole token: "111/05/2026" or "November 5, 20260" is not shortened into a valid-looking date.
 DATE = (
-    rf"(?:(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s+)?"
+    rf"(?<![\w/])(?:(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s+)?"
     rf"(?:{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}"
     rf"|\d{{1,2}}\s+{MONTHS}\s+\d{{4}}"
     rf"|\d{{1,2}}/\d{{1,2}}/\d{{2,4}}"
-    rf"|\d{{4}}-\d{{2}}-\d{{2}})"
+    rf"|\d{{4}}-\d{{2}}-\d{{2}})(?![\d/])"
+)
+# Date-like tokens in an unsupported form are reported instead of silently skipped.
+MALFORMED_DATE = (
+    rf"(?<![\w/])(?:\d{{3,}}/\d{{1,2}}/\d{{2,4}}|\d{{1,2}}/\d{{3,}}/\d{{2,4}}|\d{{1,2}}/\d{{1,2}}/\d{{5,}}"
+    rf"|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{5,}}|\d{{1,2}}\s+{MONTHS}\s+\d{{5,}})(?![\w/])"
 )
 # AM/PM must end at a token boundary: "17:00 America/New_York" is not "17:00 Am".
 AMPM = r"(?:[ap]\.\s?m\.?|[ap]m)(?![a-z])"
@@ -27,8 +34,9 @@ TIME = (rf"(?<![\d:.])(?:\d{{1,2}}(?::\d{{2}}){{0,2}}\s*{AMPM}"
 # Written cutoffs that are not clock times. They are preserved as written and flagged, never converted.
 TIME_MARKER = r"\b(?:midnight|EOD|COB|EOB|end of (?:the )?(?:business )?day|close of (?:the )?business(?: day)?|end of business)\b"
 # Longer forms first, so "UTC-04:00" is never reported as "UTC" and IANA names are kept whole.
-TZ = (r"\b(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/[A-Za-z][A-Za-z0-9_+\-]{0,30}(?:/[A-Za-z][A-Za-z0-9_+\-]{0,30})?"
-      r"|\b(?:UTC|GMT)\s?[+\u2212-]\s?\d{1,2}(?::?\d{2})?(?!\d)"
+# A zone must end at a token boundary, so "UTC+05:300" or a four-part IANA name never becomes a shorter valid one.
+TZ = (r"\b(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/[A-Za-z][A-Za-z0-9_+\-]{0,30}(?:/[A-Za-z][A-Za-z0-9_+\-]{0,30})?(?![A-Za-z0-9_+\-/])"
+      r"|\b(?:UTC|GMT)\s?[+\u2212-]\s?\d{1,2}(?::?\d{2})?(?![\d:])"
       r"|\b(?:Eastern|Central|Mountain|Pacific|Alaska|Hawaii)(?:\s+(?:Standard|Daylight|Prevailing))?\s+Time\b"
       r"|(?-i:\b(?:E|C|M|P|AK|H)[SD]?T\b)|\b(?:UTC|GMT)\b(?!\s?[+\u2212-]\s?\d)|\bZulu\b|\blocal time\b")
 
@@ -92,8 +100,10 @@ PDF_MEMORY_LIMIT_BYTES = 1024 * 1024 * 1024
 SUBJECT_RE = re.compile(r"(Volume\s+[IVX\d]{1,6}[^,.;]{0,60}?|Technical[^,.;]{0,60}?|Past Performance[^,.;]{0,60}?|Management[^,.;]{0,60}?|Price[^,.;]{0,60}?|Cost[^,.;]{0,60}?|White paper|Executive Summary|proposal|response|quote)\s+(?:shall|must|will|is|are|limited|\()", re.I)
 
 DATE_RE = re.compile(DATE, re.I)
+MALFORMED_DATE_RE = re.compile(MALFORMED_DATE, re.I)
 DATE_START = re.compile(rf"\s*(?:{DATE})", re.I)
 MAX_DEADLINES = 2000      # per document; beyond this extraction stops and says so
+MAX_OTHER_TIMES = 5       # other times recorded per deadline
 MAX_REQUIREMENTS = 10000
 TIME_RE = re.compile(rf"{TIME}|{TIME_MARKER}", re.I)
 MARKER_RE = re.compile(TIME_MARKER, re.I)
@@ -123,6 +133,14 @@ VOIDED_AFTER = re.compile(r"\b(?:no longer|not\s+(?:be\s+)?(?:in effect|applicab
                           r"|(?:is|are|was|were|has been|have been|will be|hereby)\s+(?:\w+\s+)?(?:extended|changed|revised|replaced|moved"
                           r"|removed|amended|void)|resolicit\w*)\b", re.I)
 CONDITIONAL = re.compile(r"\b(?:unless|if|in the event)\b.*", re.I | re.S)
+# Something written where a zone would be, in a form TZ does not accept ("UTC+05:300", "America/A/B/C/D").
+TZ_LIKE = re.compile(r"[ \t,(]*(?:(?:UTC|GMT)\s?[+\u2212-]\s?\d|(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/)", re.I)
+# Amendments: "extended from <old> to <new>", "<old> is extended to <new>", "changed to <new>".
+CHANGE_VERB = r"\b(?:extend|chang|mov|postpon|revis|amend|reschedul|delay|advanc|push)\w*\b"
+FROM_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bfrom\s*$", re.I)
+TO_BEFORE = re.compile(rf"(?:{CHANGE_VERB}[^.;]{{0,60}}?)?\bto\s*$", re.I)
+CHANGE_TO_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bto\s*$", re.I)
+SENTENCE_END = re.compile(r"[.!?]")
 ZERO_WIDTH = re.compile("[\u200b-\u200d\u2060\ufeff]")
 KIND_RES = [(k, re.compile(p, re.I)) for k, p in DEADLINE_KINDS]
 LIST_MARKER = re.compile(r"\s*(?:[A-Z]{1,3}\.\d+(?:\.\d+)*\b|\d+(?:\.\d+)*[.)]\s|\(?[a-zA-Z0-9]{1,3}\)\s|[\u2022\u25cf\u25aa*\u2013-]\s|(?:SECTION|Section|ARTICLE|Article|PART|Part|VOLUME|Volume)\b)")
@@ -421,6 +439,8 @@ def _statements(lines: list[str]):
         line = _norm_ws(raw)
         if not line:
             if cur:
+                if not ends_sentence:  # a blank line inside a sentence (layout or PDF extraction): flag both sides
+                    cur.open_end, opened = True, True
                 yield cur
             cur, ends_sentence = None, True
             continue
@@ -430,7 +450,7 @@ def _statements(lines: list[str]):
             if ends_sentence or heading or full or LIST_MARKER.match(raw):
                 if full and not ends_sentence:  # cut mid-sentence: flag both sides
                     cur.forced, carry = True, True
-                elif not ends_sentence and not cur.text.endswith(":"):  # a list item or heading interrupts a sentence
+                elif not ends_sentence:  # a list item or heading interrupts a sentence, including one ending in ":"
                     cur.open_end, opened = True, True
                 yield cur
                 cur = None
@@ -555,7 +575,10 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
     """Deadlines in one statement. `prev` is the adjacent statement before it, used as the label of a date that
     begins this statement ("Proposals are due no later than the date and time below." / "November 5, ...")."""
     out: list[Deadline] = []
+    starts: list[int] = []                 # date offset of each deadline in `out`
+    consumed: list[tuple[int, int]] = []   # spans already bound to some date, as time or zone
     s = st.text
+    stopped = len(s)                       # where extraction stopped if the deadline limit was reached
     # "Proposals: briefing 9:00 AM ET; due November 5" -> the leading label names what is due (kind only).
     label = m.group(1) if (m := re.match(r"([^:;.]{1,60}):", s)) else ""
     for c0, c1 in _clauses(s):
@@ -568,13 +591,17 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
         first_trigger = min(trig) if trig else None
         kind_ends = [(k, m.end()) for k, rx in KIND_RES if (m := rx.search(s, c0, c1))]
         prev_end = c0
+        prev_kind = None        # kind of the previous deadline in this clause
+        prev_superseded = False  # the previous date was the "from" side of an amendment
         for k, (dm, following) in enumerate(itertools.chain([first], pairs)):
             if len(out) >= limit:
+                stopped = min(stopped, dm.start())
                 break
             last = following is None
             region_start = prev_end
             nxt = c1 if last else following.start()
             time, tz, bind_end = _bind_after(s, dm.end(), nxt)
+            unclear_zone = time is not None and tz is None and TZ_LIKE.match(s, bind_end, nxt) is not None
             # "November 5 (5:00 PM ET on November 6 ...)": that time is written for the next date, not this one.
             if time is not None and not last and re.fullmatch(r"[\s,]*(?:on|of)?[\s,]*", s[bind_end:nxt]):
                 time, tz, bind_end = None, None, dm.end()
@@ -583,28 +610,33 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
                 b = TIME_BEFORE_DATE.search(s, lo, dm.start())
                 if b:
                     time, tz = b.group("time"), b.group("tz") or tz
+                    consumed.append((b.start(), dm.start()))
+            consumed.append((dm.start(), bind_end))
             region = s[prev_end:dm.start()]
+            superseded = bool(FROM_BEFORE.search(region))
+            replacement = k > 0 and ((prev_superseded and TO_BEFORE.search(region)) or CHANGE_TO_BEFORE.search(region))
             after = s[bind_end:nxt]
             strong = STRONG_TRIGGER.search(region)
             event = any(_kind(region) == ek for ek in EVENT_KINDS)
             skip = ISSUANCE.search(region) and not strong
             # A later date in a triggered clause is a deadline only in a plain list ("by October 20, November 5 and ...").
             listed = (k > 0 and first_trigger is not None and first_trigger <= dm.start()
-                      and (LIST_GAP.fullmatch(region) or (_kind(region) and not RANGE_WORDS.search(region))))
+                      and (LIST_GAP.fullmatch(region) or ((_kind(region) or time is not None) and not RANGE_WORDS.search(region))))
             is_deadline = not skip and bool(
-                strong or WEAK_TRIGGER.search(region) or event or listed
+                strong or WEAK_TRIGGER.search(region) or event or listed or replacement
                 or (last and (STRONG_TRIGGER.search(after) or _kind(after) in EVENT_KINDS) and not ISSUANCE.search(after)))
             labelled_by_prev = (not is_deadline and k == 0 and c0 == 0 and not region.strip() and prev
                                 and (STRONG_TRIGGER.search(prev) or WEAK_TRIGGER.search(prev)) and not ISSUANCE.search(prev))
             is_deadline = is_deadline or bool(labelled_by_prev)
             prev_end = bind_end
             if not is_deadline:
+                prev_superseded = False
                 continue
             line_start = max(off for off, _ in st.starts if off <= dm.start())
             local = s[max(line_start, region_start):dm.start()]
             earlier = next((kn for kn, end in kind_ends if end <= dm.start()), None)
-            kind = (_kind(local, region) or earlier or _kind_first(after) or _kind(label)
-                    or (_kind(prev) if labelled_by_prev else None) or "other")
+            kind = ((prev_kind if replacement and prev_kind else None) or _kind(local, region) or earlier or _kind_first(after)
+                    or _kind(label) or (_kind(prev) if labelled_by_prev else None) or "other")
             amb: list[str] = []
             # "Offerors registered in SAM.gov shall submit proposals by ...": the submission kind wins over a context
             # kind; if the context word is the one nearer the date, say the kind is uncertain.
@@ -622,13 +654,18 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
                 amb.append("no_time")
             else:
                 amb += _time_issues(_norm_ws(time))
-                if tz is None:
+                if unclear_zone:
+                    amb.append("timezone_unclear")  # a zone in a form this tool does not accept
+                elif tz is None:
                     amb.append("no_timezone")
             negs = list(NEGATION.finditer(region))
             negated = bool(negs) and not STRONG_TRIGGER.search(region, negs[-1].end())
             plain_after = CONDITIONAL.sub("", after)  # "unless cancelled by amendment" does not withdraw it
-            if negated or WITHDRAWN.search(region) or WITHDRAWN.search(plain_after) or VOIDED_AFTER.search(plain_after):
+            if superseded or negated or WITHDRAWN.search(region) or WITHDRAWN.search(plain_after) or VOIDED_AFTER.search(plain_after):
                 amb.append("negated_or_withdrawn")
+            if replacement:
+                amb.append("replaces_earlier_date")
+            prev_kind, prev_superseded = kind, "negated_or_withdrawn" in amb
             if AFTER_WORD.search(region) and not strong:
                 amb.append("after_clause")  # "Offers received after <date> will not be considered"
             if tz and "/" in tz and re.match(r"\s+[A-Z][a-z]", s[bind_end:bind_end + 3]):
@@ -640,6 +677,25 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
                 amb.append("statement_split_at_limit")
             out.append(Deadline(kind, _norm_ws(dm.group(0)), _norm_ws(time) if time else None, _norm_ws(tz) if tz else None,
                                 st.line_at(dm.start()), _norm_ws(s[lo:hi]), st.line_at(max(dm.start(), hi - 1)), amb))
+            starts.append(dm.start())
+    # Any other clock time in the same sentence after a deadline's date ("..., changed to 6:00 PM ET", "3:00 PM ET
+    # for hand delivery") is attached to that deadline, so one time is never presented as the only cutoff.
+    # Spans and starts are in text order, so each time is placed with two binary searches (linear overall).
+    if out:
+        span_starts = [a for a, _ in consumed]
+        ends = [m.start() for m in SENTENCE_END.finditer(s) if _is_boundary(s, m.start())]
+        for t in TIME_RE.finditer(s, starts[0], stopped):
+            j = bisect.bisect_right(span_starts, t.start()) - 1
+            if (MARKER_RE.fullmatch(t.group(0)) or (j >= 0 and t.start() < consumed[j][1])
+                    or re.search(r"(?:UTC|GMT)\s?[+\u2212-]\s?$", s[max(0, t.start() - 6):t.start()], re.I)):
+                continue  # a written marker, already bound to a date, or the digits of a UTC/GMT offset
+            i = bisect.bisect_left(starts, t.start()) - 1
+            if i >= 0 and bisect.bisect_left(ends, starts[i]) == bisect.bisect_left(ends, t.start()):  # same sentence
+                others = sum(a.startswith("other_time:") for a in out[i].ambiguities)
+                if others < MAX_OTHER_TIMES:  # a few are enough to send a reader to the source
+                    z = TZ_AFTER.match(s, t.end())
+                    written = _norm_ws(t.group(0) + (" " + z.group("tz") if z else ""))
+                    out[i].ambiguities.append(f"other_time:{written}")
     return out
 
 
@@ -676,15 +732,17 @@ def _requirements_in(st: _Statement) -> list[dict]:
 
 
 def _time_key(t: str | None):
+    """Seconds after midnight, so 17:00:01 and 5:00:01 PM compare equal and 17:00:01 and 17:00:59 do not."""
     t = (t or "").lower().replace(".", "").strip()
     if re.fullmatch(r"(?:12(?::00)?\s+)?noon", t):
-        return 720
+        return 12 * 3600
     if (m := re.fullmatch(r"(\d{3,4})\s*(?:hours|hrs)", t)):
         h, mi = divmod(int(m.group(1)), 100)
-        return h * 60 + mi
-    if (m := re.fullmatch(r"(\d{1,2})(?::(\d{2}))?(?::\d{2})?\s*([ap])?m?", t)):
-        h, mi, ap = int(m.group(1)), int(m.group(2) or 0), m.group(3)
-        return ((h % 12) + (12 if ap == "p" else 0) if ap else h) * 60 + mi
+        return h * 3600 + mi * 60
+    if (m := re.fullmatch(r"(\d{1,2})(?::(\d{2}))?(?::(\d{2}(?:\.\d+)?))?\s*([ap])?m?", t)):
+        h, mi, se, ap = int(m.group(1)), int(m.group(2) or 0), m.group(3) or "0", m.group(4)
+        hour = (h % 12) + (12 if ap == "p" else 0) if ap else h
+        return f"{hour * 3600 + mi * 60 + int(float(se))}{se[se.find('.'):] if '.' in se else ''}"
     return t
 
 
@@ -778,7 +836,12 @@ def analyze(text: str) -> Report:
             elif a == "kind_uncertain":
                 r.warnings.append(f"Deadline on line {d.line} mentions more than one kind of event; confirm what is due on that date.")
             elif a == "timezone_unclear":
-                r.warnings.append(f"Deadline on line {d.line}: timezone \"{d.timezone}\" may be cut short; read the source text.")
+                r.warnings.append(f"Deadline on line {d.line}: timezone \"{d.timezone}\" may be cut short; read the source text." if d.timezone
+                                  else f"Deadline on line {d.line}: the timezone is written in a form this tool does not support; read the source text.")
+            elif a == "replaces_earlier_date":
+                r.warnings.append(f"Deadline on line {d.line} replaces an earlier date in the same sentence; confirm it against the amendment.")
+            elif a.startswith("other_time:"):
+                r.warnings.append(f"Deadline on line {d.line}: the same sentence also gives \"{a.split(':', 1)[1]}\"; confirm which time applies to what.")
             elif a == "statement_split_at_limit":
                 r.warnings.append(f"Deadline on line {d.line} is in a very long unpunctuated passage; check the source text around it.")
     by_kind: dict[str, list[Deadline]] = {}
@@ -792,6 +855,9 @@ def analyze(text: str) -> Report:
         if q["truncated"]:
             r.warnings.append(f"Requirement on line {q['line']} is long or continues past a parsing bound; the checklist shows an excerpt. Read lines {q['line']}-{q['end_line']}.")
     r.warnings += capped
+    for i, raw in enumerate(lines, 1):
+        for m in MALFORMED_DATE_RE.finditer(raw):
+            r.warnings.append(f"Line {i} has a date-like value in a form this tool does not read (\"{_norm_ws(m.group(0))[:40]}\"); check it in the source.")
     if "\ufffd" in text:
         r.warnings.append("Input contains U+FFFD replacement characters (undecodable bytes or a lossy conversion); some text may be missing.")
     if not r.page_limits:
