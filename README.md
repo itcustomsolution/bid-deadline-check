@@ -62,7 +62,8 @@ the implemented checks fired:
 - no requirement was reported as an excerpt;
 - page limits were found;
 - no date-like value was found in a form the tool does not read (for example `111/05/2026`,
-  `November 5, 2026x`, `5November 2026` or a year typed as `2O26`);
+  `5November 2026` or a year typed as `2O26`), and no deadline's date runs into the text after it
+  (`November 5, 2026x` is read as November 5 and flagged);
 - no clause has change wording, a deadline word and a time but no date ("The closing time is now 3:00 PM ET."); and
 - the input decoded without replacement characters, and extraction did not stop at its per-document
   limits.
@@ -99,7 +100,8 @@ rows = report.checklist()   # list of dicts: id, category, item, line, done
 `end_line` and `ambiguities` (codes: `no_time`, `no_timezone`, `time_marker:<text>`, `invalid_date`,
 `invalid_time`, `two_digit_year`, `negated_or_withdrawn`, `replaces_earlier_date` (the new date of an
 "extended/changed/moved from ... to ..." or "... it is now <date>" amendment), `issue_date_possible` (an issue
-or amendment word sits between the deadline word and the date), `other_time:<text>` (another clock time in the same
+or amendment word sits between the deadline word and the date), `date_glued_to_text` (letters follow the date with
+no space, as in `2026at`), `other_time:<text>` (another clock time in the same
 sentence, at most five), `unread_date:<text>` (another date in a sentence with change wording that was not read as
 a deadline, at most five), `after_clause`, `kind_uncertain`, `timezone_unclear` (a zone that may be cut
 short or is in an unsupported form, such as `UTC+05:30:15`), `statement_split_at_limit`, and

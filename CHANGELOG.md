@@ -68,7 +68,8 @@ later is required, and the PDF extra needs pypdf 6.21.0 or later.
   dates (R2-DL-1), and any other date in a sentence with change wording that is not read as a deadline is named as
   `unread_date:<text>` and warns; a date written after an issue or amendment word that follows the deadline words
   ("the proposal due date was issued <date>") is flagged `issue_date_possible` (R2-DL-2); fractional seconds compare
-  without trailing zeros (R2-DL-3); a date glued to letters ("November 5, 2026oops"), a digit glued to a month name
-  and a year typed with a letter are reported as date-like values instead of being read as clean dates (R2-DL-4);
+  without trailing zeros (R2-DL-3); a date glued to letters ("November 5, 2026oops") is still read but flagged
+  `date_glued_to_text` (R2-DL-4), and a digit glued to a month name or a year typed with a letter is reported as a
+  date-like value;
   a clause with change wording, a deadline word and a time but no date warns (it may also fire beside a dated
   deadline, as in "; revised proposals at 6:00 PM ET").

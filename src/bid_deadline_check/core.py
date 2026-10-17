@@ -20,19 +20,17 @@ MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|A
 # each word.
 _DATE_GATE = r"(?:(?<![A-Za-z\d/])|(?-i:(?<=[a-z])(?=[A-Z]))|(?<=[A-Za-z])(?=\d)|(?<=\d/)(?=\d{4}-))"  # last: ISO interval end
 _NAMED_DATE = rf"{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{4}}"
-# A date also ends before a letter ("November 5, 2026oops" is not November 5); an ISO date may run into its "T".
+# A date running into letters ("November 5, 2026oops") is still read; the deadline is flagged date_glued_to_text.
 DATE = (
     rf"{_DATE_GATE}(?:(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s+)?"
-    rf"(?:(?:{_NAMED_DATE}|\d{{1,2}}/\d{{1,2}}/\d{{2,4}}(?!/))(?![A-Za-z\d])"
-    rf"|\d{{4}}-\d{{2}}-\d{{2}}(?!\d|(?![Tt])[A-Za-z]))"
+    rf"(?:{_NAMED_DATE}|\d{{1,2}}/\d{{1,2}}/\d{{2,4}}(?!/)|\d{{4}}-\d{{2}}-\d{{2}})(?!\d)"
 )
-# Date-like tokens in an unsupported form are reported instead of silently skipped: too many digits, a date glued to
-# letters, a digit glued to a month name ("5November 2026", "November5, 2026") and a year typed with a letter ("2O26").
+# Date-like tokens in an unsupported form are reported instead of silently skipped: too many digits, a digit glued to
+# a month name ("5November 2026", "November5, 2026") and a year typed with a letter ("2O26").
 _LETTER_YEAR = r"(?=[\dOoIl]{4}(?![A-Za-z\d]))(?!\d{4})[\dOoIl]{4}"
 MALFORMED_DATE = (
     rf"{_DATE_GATE}(?:(?:\d{{3,}}/\d{{1,2}}/\d{{2,4}}|\d{{1,2}}/\d{{3,}}/\d{{2,4}}|\d{{1,2}}/\d{{1,2}}/\d{{5,}}"
     rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{5,}}|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{5,}})(?![\d/])"
-    rf"|(?:{_NAMED_DATE}|\d{{1,2}}/\d{{1,2}}/\d{{2,4}})(?=[A-Za-z])|\d{{4}}-\d{{2}}-\d{{2}}(?=(?![Tt])[A-Za-z])"
     rf"|\d{{1,2}}(?:st|nd|rd|th)?{MONTHS}\s*\d{{4}}(?!\d)|{MONTHS}\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}(?!\d)"
     rf"|(?:{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+|\d{{1,2}}/\d{{1,2}}/){_LETTER_YEAR})"
 )
@@ -232,7 +230,7 @@ class Deadline:
     # Codes for anything a reader must check: no_time, no_timezone, time_marker:<text>, invalid_date,
     # invalid_time, two_digit_year, negated_or_withdrawn, after_clause, kind_uncertain, timezone_unclear,
     # context_truncated (informational: only the excerpt was shortened), statement_split_at_limit, issue_date_possible,
-    # replaces_earlier_date, other_time:<text>, unread_date:<text>.
+    # replaces_earlier_date, other_time:<text>, unread_date:<text>, date_glued_to_text.
     ambiguities: list[str] = field(default_factory=list)
 
 
@@ -705,6 +703,8 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
                         amb.append("kind_uncertain")
                     kind = sub
             amb += _date_issues(_norm_ws(dm.group(0)))
+            if s[dm.end():dm.end() + 1].isalpha() and not ISO_TIME.match(s, dm.end()):
+                amb.append("date_glued_to_text")  # "November 5, 2026oops": the date may be cut or mistyped
             if time is None:
                 amb.append("no_time")
             else:
@@ -939,6 +939,8 @@ def analyze(text: str) -> Report:
             elif a == "timezone_unclear":
                 r.warnings.append(f"Deadline on line {d.line}: timezone \"{d.timezone}\" may be cut short; read the source text." if d.timezone
                                   else f"Deadline on line {d.line}: the timezone is written in a form this tool does not support; read the source text.")
+            elif a == "date_glued_to_text":
+                r.warnings.append(f"Deadline on line {d.line}: \"{d.date}\" runs into the text after it; check the full date in the source.")
             elif a == "issue_date_possible":
                 r.warnings.append(f"Deadline on line {d.line}: \"{d.date}\" follows an issue or amendment word; confirm it is a deadline and not the date the document was issued.")
             elif a == "replaces_earlier_date":
