@@ -33,7 +33,7 @@ CASES = {
     'r11_wrap_volume': 'BC+The offeror shall submit the technical approach in\nVolume I and the price in Volume II.',
     's03_caps_form_line': 'BC+The offeror shall complete and return\nSF-1449\nwith the proposal.',
     'a01_rm_bldg': 'B+The offeror shall deliver proposals to Rm. 101, Bldg. 5 by November 5, 2026 at 5:00 PM ET.',
-    'a02_ste': 'B+Proposals shall be delivered to 420 Lexington Ave., Ste. 1402 by November 5, 2026 at 5:00 PM ET.',
+    'a02_ste': 'B+Proposals shall be delivered to 100 Example Ave., Ste. 1402 by November 5, 2026 at 5:00 PM ET.',
     'd02_closes': 'B+This RFQ closes November 5, 2026 at 5:00 PM ET.',
     'e05_bid_opening': 'B+Bid opening: November 5, 2026 at 2:00 PM ET.',
     't01_12_noon': 'B+Proposals due November 5, 2026 at 12 noon ET.',
