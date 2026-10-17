@@ -46,7 +46,8 @@ MALFORMED_DATE = (
     # a letter or dot ("12.11.2026"), a date followed by another slash part ("11/12/2026/2027"), a named date with a
     # two-digit year that does not continue a list ("November 12, 26", not "November 3, 10 and 17"), a comma after the
     # month ("November, 12, 2026", "November,12,2026") and month-day-year with dashes ("Nov-12-2026"). The year must
-    # look like one (19xx or 20xx), so solicitation, version, section and paragraph numbers are not reported.
+    # look like one (19xx or 20xx), so fewer solicitation, version, section and paragraph numbers are reported; the
+    # README lists those that still are.
     rf"|(?:19|20)\d{{2}}-(?:\d{{3}}-\d{{2}}|\d{{2}}-\d{{3}})(?![\w-])|(?:19|20)\d{{3}}-\d{{2}}-\d{{2}}(?![\w-])"
     rf"|(?:19|20)\d{{2}}/{_MM}/{_DD}(?![\w/]|\.\d)|(?:19|20)\d{{2}}\.{_MM}\.{_DD}(?![\w]|\.\d)"
     rf"|(?<![\w.])\d{{1,2}}\.\d{{1,2}}\.(?:19|20)\d{{2}}(?![\w]|\.\d)|\d{{1,2}}/\d{{1,2}}/\d{{4}}(?:/\d+)+"
