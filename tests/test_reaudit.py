@@ -129,7 +129,7 @@ def test_rbd2_other_times_are_bounded_per_deadline():
 
 
 # r2 independent review (kofi, KR2-01 to KR2-09). Synthetic text only.
-from bid_deadline_check.core import DATE_RE, MAX_MALFORMED_WARNINGS
+from bid_deadline_check import core  # module import, so these tests also run against earlier commits
 
 
 def kinds(r):
@@ -222,11 +222,12 @@ def test_kr2_06_kr2_09_glued_and_ordinal_dates_are_read(text, date):
 
 
 def test_kr2_06_both_ends_of_an_iso_interval_are_dates():
-    assert [m.group(0) for m in DATE_RE.finditer("2027-01-01/2027-06-30")] == ["2027-01-01", "2027-06-30"]
+    assert [m.group(0) for m in core.DATE_RE.finditer("2027-01-01/2027-06-30")] == ["2027-01-01", "2027-06-30"]
 
 
 def test_kr2_08_malformed_date_warnings_are_capped():
     r = analyze(BASE + COMPLETE + "111/05/2026 " * 500)
     listed = [w for w in r.warnings if w.startswith("Line ") and "date-like value" in w]
-    assert len(listed) == MAX_MALFORMED_WARNINGS
-    assert any(w.startswith(f"{500 - MAX_MALFORMED_WARNINGS} more date-like values") for w in r.warnings)
+    cap = getattr(core, "MAX_MALFORMED_WARNINGS", None)
+    assert cap is not None and len(listed) == cap
+    assert any(w.startswith(f"{500 - cap} more date-like values") for w in r.warnings)
