@@ -169,9 +169,13 @@ CONDITIONAL = re.compile(r"\b(?:unless|if|in the event)\b.*", re.I | re.S)
 # Something written where a zone would be, in a form TZ does not accept ("UTC+05:300", "America/A/B/C/D").
 TZ_LIKE = re.compile(r"[ \t,(]*(?:(?:UTC|GMT)\s?[+\u2212-]\s?\d|(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/)", re.I)
 # Amendments: "extended from <old> to <new>", "<old> is extended to <new>", "changed to <new>".
-# Verb forms only. "slide" counts only before a shift ("slides one week", "slides back"), so presentation slides do not.
+# Verb forms only. "slide", "slides" and "sliding" count only before a shift ("slides two weeks", "slides back"), so
+# presentation slides and a sliding scale do not; "slid" counts alone.
+_SHIFT = (r"(?:back|forward|out|(?:by\s+)?(?:\d+|an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve"
+          r"|fourteen|fifteen|twenty|thirty|several|a\s+few|a\s+full|another)\s+(?:more\s+)?(?:(?:business|calendar|working)\s+)?"
+          r"(?:weeks?|days?|months?|hours?))")
 _MORE_CHANGE = (r"(?:alter(?:s|ed|ing)|adjust(?:s|ed|ing)|accelerat(?:es|ed|ing)|revok(?:es|ed|ing)|rescind(?:s|ed|ing)"
-                r"|suspend(?:s|ed|ing)|slid(?:ing)?|slides?\s+(?:back|forward|out|by\s+(?:one|two|three|a|\d)|(?:one|two|three|a)\s+(?:week|day|month)|\d)"
+                rf"|suspend(?:s|ed|ing)|slid|slid(?:es?|ing)\s+{_SHIFT}"
                 r"|br(?:ought|ings|inging)\s+(?:\w+\s+){0,5}?forward)\b")
 CHANGE_VERB = rf"\b(?:(?:extend|extens|chang|mov|postpon|revis|amend|reschedul|delay|advanc|push|slip|shift)\w*|{_MORE_CHANGE})\b"
 # What names a deadline: "proposal due date", "closing time", "deadline", "time for receipt", "proposals are now due",

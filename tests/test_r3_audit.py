@@ -112,6 +112,12 @@ def test_r3_dl_3_zone_controls_stay_clean(tmp_path, tail):
     "The proposal due date slid by one week.",                                  # M01
     "Amendment 0002 brings the proposal due date forward by two days.",          # M18
     "The proposal due date slides back to November 3, 2026.",
+    "The proposal due date slides two weeks.",                                  # round 2: plural units
+    "The proposal due date slides three days.",
+    "The proposal due date slides ten days.",
+    "The proposal due date slides a full week.",
+    "The proposal due date slides 7 days.",
+    "The closing date is sliding by two business days.",
 ])
 def test_r4_review_revisions_now_fail(tmp_path, tail):
     assert strict(tmp_path, BASE + COMPLETE + tail) == 2
@@ -133,6 +139,9 @@ def test_r4_review_announcement_siblings_are_flagged(tmp_path, tail):
     "Oral presentations are limited to 15 slides and will be scheduled after the closing date.",             # C02
     "Offerors are encouraged to bring forward any questions well before the question deadline.",             # C07
     "Submit presentation slides by the proposal due date.",
+    "Registration fees follow a sliding scale and are due by the registration deadline.",   # round 2
+    "Sliding doors at the loading dock are locked after the closing time.",
+    "Presentation slides two through five must show the schedule; slides are due with the proposal.",
 ])
 def test_r4_review_slides_and_bring_forward_controls_stay_clean(tmp_path, tail):
     assert strict(tmp_path, BASE + COMPLETE + tail) == 0
