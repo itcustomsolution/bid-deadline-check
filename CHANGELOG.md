@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0rc1 (unreleased candidate, 2026-10-16; not published)
+## 0.2.0rc2 (unreleased candidate, 2026-10-17; not published; 0.2.0rc1 of 2026-10-16 was the independently audited candidate)
 
 **Breaking:** deadline extraction output changes (more deadlines, new kinds `registration` and
 `revised_proposal_due`, new `Deadline.end_line` and `Deadline.ambiguities`, `text` is now the clause around the
