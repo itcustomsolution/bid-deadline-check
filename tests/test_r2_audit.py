@@ -136,3 +136,33 @@ def test_r2_dl_1_other_dates_in_a_plain_deadline_sentence_are_not_flagged(tmp_pa
     r = analyze(BASE + tail)
     assert proposals(r) == [("November 5, 2026", "5:00 PM", "ET", [])]
     assert strict(tmp_path, BASE + tail) == 0
+
+
+# A sentence that changes a deadline's clock time without giving a date fails --strict; nothing in it is a deadline
+# this tool can place, so the original deadline must not look final.
+@pytest.mark.parametrize("tail", [
+    "The closing time is revised from 5:00 PM ET to 3:00 PM ET.",
+    "The closing time is now 3:00 PM ET.",
+    "The time for receipt of offers is changed to 3:00 PM ET.",
+    "The proposal due time is moved to COB.",
+])
+def test_a_time_only_revision_fails_strict(tmp_path, tail):
+    text = BASE + COMPLETE + tail
+    assert any("changes a time without a date" in w for w in analyze(text).warnings)
+    assert strict(tmp_path, text) == 2
+
+
+@pytest.mark.parametrize("tail", [
+    "The reading room is open from 9:00 AM to 5:00 PM ET.",
+    "Late offers are handled within 120 hours of the deadline.",
+])
+def test_a_time_without_change_wording_is_not_a_revision(tmp_path, tail):
+    assert strict(tmp_path, BASE + COMPLETE + tail) == 0
+
+
+def test_time_only_revision_warnings_are_capped():
+    from bid_deadline_check import core
+    r = analyze(BASE + COMPLETE + "The closing time is now 3:00 PM ET.\n" * 80)
+    listed = [w for w in r.warnings if "changes a time without a date" in w]
+    assert len(listed) == core.MAX_MALFORMED_WARNINGS
+    assert any(w.startswith("30 more sentences") for w in r.warnings)

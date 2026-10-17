@@ -878,7 +878,14 @@ def analyze(text: str) -> Report:
 
     prev: _Statement | None = None
     capped = []
+    time_changes: list[int] = []  # lines of sentences that change a deadline's time without giving a date
     for st in _statements(lines):
+        pos = 0
+        for sent in iter_sentences(st.text):
+            start, pos = pos, pos + len(sent)
+            if (CHANGE_WORDS.search(sent) and (CHANGE_HINT.search(sent) or _kind(sent)) and not DATE_RE.search(sent)
+                    and any(not DURATION_HOURS.fullmatch(t.group(0)) for t in TIME_RE.finditer(sent))):
+                time_changes.append(st.line_at(start + len(sent) - len(sent.lstrip())))
         adjacent = prev is not None and prev.starts[-1][1] + 1 == st.starts[0][1] and len(prev.text) <= 200
         if len(r.deadlines) < MAX_DEADLINES:
             r.deadlines += _deadlines_in(st, prev.text if adjacent else "", MAX_DEADLINES - len(r.deadlines))
@@ -961,6 +968,10 @@ def analyze(text: str) -> Report:
                 r.warnings.append(f"Line {i} has a date-like value in a form this tool does not read (\"{_norm_ws(m.group(0))[:40]}\"); check it in the source.")
     if malformed > MAX_MALFORMED_WARNINGS:
         r.warnings.append(f"{malformed - MAX_MALFORMED_WARNINGS} more date-like values in unsupported forms are not listed.")
+    for i in time_changes[:MAX_MALFORMED_WARNINGS]:
+        r.warnings.append(f"Line {i} changes a time without a date; confirm which deadline it amends and its new cutoff.")
+    if len(time_changes) > MAX_MALFORMED_WARNINGS:
+        r.warnings.append(f"{len(time_changes) - MAX_MALFORMED_WARNINGS} more sentences that change a time without a date are not listed.")
     if "\ufffd" in text:
         r.warnings.append("Input contains U+FFFD replacement characters (undecodable bytes or a lossy conversion); some text may be missing.")
     if not r.page_limits:
