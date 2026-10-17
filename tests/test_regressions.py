@@ -215,7 +215,7 @@ def test_bd5_pdf_dependency_floor():
     import pypdf
     floor = re.search(r'"pypdf>=([0-9.]+)"', (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()).group(1)
     as_tuple = lambda v: tuple(int(x) for x in re.findall(r"\d+", v)[:3])
-    assert as_tuple(floor) >= (6, 21, 0)
+    assert as_tuple(floor) >= (6, 21, 1)  # GHSA-5hx5-vpf9-5wcv (2026-10-17): image conversion fixed in 6.21.1
     assert as_tuple(pypdf.__version__) >= as_tuple(floor)
 
 

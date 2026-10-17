@@ -177,7 +177,7 @@ short or is in an unsupported form, such as `UTC+05:30:15`), `statement_split_at
   that memory limit (measured), and Windows has no CPU limit, so there only the wall-clock stop
   applies. The worker never imports from the current directory. A worker that crashes is reported as a
   failure, not as a limit. `read_document(path, isolate=False)` parses in-process with between-page
-  checks only, which do not bound a single slow page. Requires pypdf 6.21.0 or later.
+  checks only, which do not bound a single slow page. Requires pypdf 6.21.1 or later.
 - CSV output prefixes cells that start with `=`, `+`, `-`, `@`, tab or CR with `'`. This is a common
   mitigation for formula injection; it is not tested against any particular spreadsheet application.
 - Output contains solicitation text. Treat it as untrusted data if another program or an AI assistant

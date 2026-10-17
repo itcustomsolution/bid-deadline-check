@@ -76,3 +76,21 @@ def test_r4_dl_3_fractional_offset_is_unclear(tmp_path, tail):
                                   "Proposals due November 5, 2026 at 17:00 UTC-04:00. 5 copies are required."])
 def test_r4_dl_3_offset_before_sentence_end_stays_clean(tmp_path, tail):
     assert strict(tmp_path, BASE + tail) == 0
+
+
+# R4-SC-01 (GHSA-5hx5-vpf9-5wcv): pypdf below 6.21.1 passes /DCTDecode image data to Pillow without a format
+# restriction, in its image conversion. The tool reads PDFs only through extract_text(); this checks that its text path
+# never calls the conversion, for a page that draws a non-JPEG /DCTDecode image and holds an inline /DCT image, while
+# pypdf's own image API on the same page does (the control). It shows the path is not reached for this file, not that
+# no PDF can reach it; the floor is raised regardless.
+def test_r4_sc_01_pdf_text_path_does_not_convert_images(tmp_path):
+    import json, subprocess, sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parent
+    p = subprocess.run([sys.executable, "-I", str(root / "probes/pypdf_reachability.py"), str(root.parent / "src"), str(tmp_path)],
+                       capture_output=True, text=True, timeout=60)
+    assert p.returncode == 0, p.stderr[-500:]
+    res = json.loads(p.stdout.strip().splitlines()[-1])
+    assert res["text_found"]
+    assert res["calls_during_text_extraction"] == {"xobj_to_image": 0, "Image.open": 0}
+    assert res["calls_after_images_control"]["xobj_to_image"] >= 1, "the control must reach the conversion"
