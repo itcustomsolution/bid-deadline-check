@@ -54,13 +54,16 @@ the implemented checks fired:
 - a proposal due date and a questions-due date were found (and neither is negated or withdrawn);
 - every extracted deadline has a valid calendar date, a clock time (or "noon") and a timezone, all
   bound to the same clause, with no "EOD"/"midnight"/close-of-business marker and no two-digit year,
-  and none is flagged as withdrawn or superseded, as replacing an earlier date, as sharing its sentence
-  with another clock time, as taken from a "received after" clause, as of uncertain kind, or as having
-  an unclear or unsupported timezone;
+  and none is flagged as withdrawn or superseded, as replacing an earlier date, as possibly an issue
+  date, as sharing its sentence with another clock time or with a date not read as a deadline in a
+  sentence that changes something, as taken from a "received after" clause, as of uncertain kind, or as
+  having an unclear or unsupported timezone;
 - no kind of deadline has two different values (for example an amended due date);
 - no requirement was reported as an excerpt;
 - page limits were found;
-- no date-like value was found in a form the tool does not read (for example `111/05/2026`); and
+- no date-like value was found in a form the tool does not read (for example `111/05/2026`,
+  `November 5, 2026x`, `5November 2026` or a year typed as `2O26`);
+- no sentence changes a time without giving a date ("The closing time is now 3:00 PM ET."); and
 - the input decoded without replacement characters, and extraction did not stop at its per-document
   limits.
 
@@ -71,11 +74,15 @@ Read the solicitation and every amendment yourself.
 Known cases where `--strict` fails although nothing is wrong: the same time restated in another zone
 ("5:00 PM ET (2:00 PM PT)"), because the tool does not convert zones; office hours in the deadline's
 sentence ("; hand-carried proposals are accepted between 8:00 AM and 4:00 PM ET"); and slash-separated part
-or document numbers that look like dates (`123/45/6789`). Known gap: an amendment that changes only a time,
-in a sentence with no date ("The closing time is revised from 5:00 PM ET to 3:00 PM ET."), is not detected, and
-when such a change is written next to a date the old time may be the one reported (flagged as withdrawn). Also a
-known strict false positive: a period-of-performance or validity change whose sentence names a date, time, receipt,
-submission, solicitation or any deadline kind (offers, questions, registration, site visit, and so on).
+or document numbers that look like dates (`123/45/6789`); a period-of-performance or validity change whose
+sentence names a date, time, receipt, submission, solicitation or any deadline kind (offers, questions,
+registration, site visit, and so on); an issue or amendment word between the deadline word and its date ("due on
+the date stated in Amendment 0002, November 12, 2026"); any other date in a deadline's sentence when that sentence
+has change wording ("new", "now", "updated", "extended", and so on), such as a performance period in the same
+sentence as an extended deadline; and a sentence with change wording, a deadline word and a clock time but no date
+("questions may now be sent until 3:00 PM ET"). An amendment that changes only a time is detected but not read:
+the warning names its line, and when such a change is written next to a date the old time may be the one reported
+(flagged as withdrawn or as another time).
 
 ## Library
 
@@ -91,8 +98,10 @@ rows = report.checklist()   # list of dicts: id, category, item, line, done
 `Deadline` has `kind`, `date`, `time`, `timezone`, `line`, `text` (the clause around the date),
 `end_line` and `ambiguities` (codes: `no_time`, `no_timezone`, `time_marker:<text>`, `invalid_date`,
 `invalid_time`, `two_digit_year`, `negated_or_withdrawn`, `replaces_earlier_date` (the new date of an
-"extended/changed/moved from ... to ..." amendment), `other_time:<text>` (another clock time in the same
-sentence, at most five), `after_clause`, `kind_uncertain`, `timezone_unclear` (a zone that may be cut
+"extended/changed/moved from ... to ..." or "... it is now <date>" amendment), `issue_date_possible` (an issue
+or amendment word sits between the deadline word and the date), `other_time:<text>` (another clock time in the same
+sentence, at most five), `unread_date:<text>` (another date in a sentence with change wording that was not read as
+a deadline, at most five), `after_clause`, `kind_uncertain`, `timezone_unclear` (a zone that may be cut
 short or is in an unsupported form, such as `UTC+05:30:15`), `statement_split_at_limit`, and
 `context_truncated`, which only says the `text` excerpt was shortened and raises no warning). Each requirement is `{"text", "line", "end_line", "truncated"}`.
 

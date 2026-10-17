@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0rc2 (unreleased candidate, 2026-10-17; not published; 0.2.0rc1 of 2026-10-16 was the independently audited candidate)
+## 0.2.0rc3 (unreleased candidate, 2026-10-17; not published; 0.2.0rc1 of 2026-10-16 and 0.2.0rc2 of 2026-10-17 were the independently audited candidates)
 
 **Breaking:** deadline extraction output changes (more deadlines, new kinds `registration` and
 `revised_proposal_due`, new `Deadline.end_line` and `Deadline.ambiguities`, `text` is now the clause around the
@@ -63,3 +63,11 @@ later is required, and the PDF extra needs pypdf 6.21.0 or later.
   "this amendment extends ... to <date>" is no longer skipped as an issuance date (pre-existing); "changed to read as follows:" is recognized; a clock time after "for" or "within" is an
   other time again (only a three-digit hours form is treated as a duration); a time-less date keeps a zone written
   after "prevailing" or "local".
+- r2 audit fixes (2026-10-17, pre-existing on rc1 and rc2): "changed from the current date of <old> to <new>",
+  "the extension of the due date from <old> to <new>" and "was previously <old>; it is now <new>" report both
+  dates (R2-DL-1), and any other date in a sentence with change wording that is not read as a deadline is named as
+  `unread_date:<text>` and warns; a date written after an issue or amendment word that follows the deadline words
+  ("the proposal due date was issued <date>") is flagged `issue_date_possible` (R2-DL-2); fractional seconds compare
+  without trailing zeros (R2-DL-3); a date glued to letters ("November 5, 2026oops"), a digit glued to a month name
+  and a year typed with a letter are reported as date-like values instead of being read as clean dates (R2-DL-4);
+  a sentence that changes a time without a date warns.
