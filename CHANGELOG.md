@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0rc3 (unreleased candidate, 2026-10-17; not published; 0.2.0rc1 of 2026-10-16 and 0.2.0rc2 of 2026-10-17 were the independently audited candidates)
+## 0.2.0rc4 (unreleased candidate, 2026-10-17; not published; 0.2.0rc1 of 2026-10-16, 0.2.0rc2 and 0.2.0rc3 of 2026-10-17 were the independently audited candidates)
 
 **Breaking:** deadline extraction output changes (more deadlines, new kinds `registration` and
 `revised_proposal_due`, new `Deadline.end_line` and `Deadline.ambiguities`, `text` is now the clause around the
@@ -91,3 +91,9 @@ later is required, and the PDF extra needs pypdf 6.21.0 or later.
   "The closing hour is changed to 3:00 PM ET" fail `--strict` again; "will now be accepted until <date>" is a
   replacement again; a letter-for-digit pattern that rescanned long runs of dashes is bounded (it was quadratic, new
   in this candidate). The README lists the revision forms both checks still miss and the hedged sentences they flag.
+- r3 audit fixes (2026-10-17): verb forms of alter, adjust, accelerate, revoke, rescind, suspend and slide, and
+  "brought forward", are change words, so "The closing time is altered to 3:00 PM ET." beside an old cutoff fails
+  `--strict` (R3-DL-1); announcement wording between a deadline word and a date ("was publicized", "notice ... was
+  delivered", "communicated", "made public") flags `issue_date_possible` (R3-DL-2); a zone followed by a letter,
+  digit or `_` (`17:00:00Zdraft`, `UTC+05:30junk`) is flagged with the new code `timezone_glued_to_text`
+  (R3-DL-3). A test fixture now uses a synthetic address.
