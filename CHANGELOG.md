@@ -92,7 +92,8 @@ later is required, and the PDF extra needs pypdf 6.21.0 or later.
   replacement again; a letter-for-digit pattern that rescanned long runs of dashes is bounded (it was quadratic, new
   in this candidate). The README lists the revision forms both checks still miss and the hedged sentences they flag.
 - r3 audit fixes (2026-10-17): verb forms of alter, adjust, accelerate, revoke, rescind and suspend, "slid",
-  "sliding", "slides" before a shift ("slides one week"), and "brought/brings ... forward" are change words, so "The closing time is altered to 3:00 PM ET." beside an old cutoff fails
+  "slide", "slides" or "sliding" before a shift ("slides two weeks", "slides back"), and "brought/brings ...
+  forward" are change words, so "The closing time is altered to 3:00 PM ET." beside an old cutoff fails
   `--strict` (R3-DL-1); announcement wording between a deadline word and a date ("was publicized", "notice ... was
   delivered", "was communicated", "was made public", and after the r4 review also conveyed, disclosed, notified,
   provided, shared and faxed, in the past passive only) flags `issue_date_possible` (R3-DL-2); a zone followed by a letter,
