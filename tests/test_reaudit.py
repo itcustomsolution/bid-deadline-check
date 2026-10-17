@@ -231,3 +231,35 @@ def test_kr2_08_malformed_date_warnings_are_capped():
     cap = getattr(core, "MAX_MALFORMED_WARNINGS", None)
     assert cap is not None and len(listed) == cap
     assert any(w.startswith(f"{500 - cap} more date-like values") for w in r.warnings)
+
+
+# Final verification residuals (kofi r2c: R1 to R4).
+@pytest.mark.parametrize("text", [
+    "The period of performance may be extended to December 31, 2027.",
+    "The contract period may be extended to September 30, 2028 by exercise of options.",
+])
+def test_r2c_r1_a_term_extension_without_a_deadline_word_is_not_a_replacement(tmp_path, text):
+    r = analyze(BASE + COMPLETE + text)
+    assert kinds(r) == [("proposal_due", "November 5, 2026", "5:00 PM", [])] and r.warnings == []
+
+
+def test_r2c_r3_changed_to_read_as_follows(tmp_path):
+    text = BASE + COMPLETE + "Block 8 is changed to read as follows: November 12, 2026 at 5:00 PM ET."
+    assert any(d.date == "November 12, 2026" and "replaces_earlier_date" in d.ambiguities for d in analyze(text).deadlines)
+    assert strict(tmp_path, text) == 2
+
+
+def test_r2c_r2_a_clock_time_after_for_is_still_another_time():
+    (d,) = kinds(analyze(BASE + "Proposals due November 5, 2026 at 5:00 PM ET, with a debrief scheduled for 3:00 PM ET."))
+    assert d[3] == ["other_time:3:00 PM ET"]
+
+
+def test_r2c_r4_a_timeless_date_keeps_a_prevailing_local_zone():
+    (d,) = [d for d in analyze(BASE + "Proposals are due November 5, 2026, prevailing local time.").deadlines if d.kind == "proposal_due"]
+    assert d.timezone == "local time"
+
+
+def test_r2c_r1_extending_the_response_period_is_still_a_replacement(tmp_path):
+    text = BASE + COMPLETE + "The Government reserves the right to extend the response period to November 12, 2026."
+    assert any(d.date == "November 12, 2026" and "replaces_earlier_date" in d.ambiguities for d in analyze(text).deadlines)
+    assert strict(tmp_path, text) == 2

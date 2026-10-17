@@ -18,9 +18,9 @@ MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|A
 # letter ("onNovember 5") or as a digit after a letter ("due11/05/2026"), or as the second ISO date of an interval
 # ("2027-01-01/2027-06-30"). One gate in front of every form keeps the pattern from trying each month name inside
 # each word.
-DATE_START = r"(?:(?<![A-Za-z\d/])|(?-i:(?<=[a-z])(?=[A-Z]))|(?<=[A-Za-z])(?=\d)|(?<=\d/)(?=\d{4}-))"  # last: ISO interval end
+_DATE_GATE = r"(?:(?<![A-Za-z\d/])|(?-i:(?<=[a-z])(?=[A-Z]))|(?<=[A-Za-z])(?=\d)|(?<=\d/)(?=\d{4}-))"  # last: ISO interval end
 DATE = (
-    rf"{DATE_START}(?:(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s+)?"
+    rf"{_DATE_GATE}(?:(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s+)?"
     rf"(?:{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}"
     rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{4}}"
     rf"|\d{{1,2}}/\d{{1,2}}/\d{{2,4}}(?!/)"
@@ -28,7 +28,7 @@ DATE = (
 )
 # Date-like tokens in an unsupported form are reported instead of silently skipped.
 MALFORMED_DATE = (
-    rf"{DATE_START}(?:\d{{3,}}/\d{{1,2}}/\d{{2,4}}|\d{{1,2}}/\d{{3,}}/\d{{2,4}}|\d{{1,2}}/\d{{1,2}}/\d{{5,}}"
+    rf"{_DATE_GATE}(?:\d{{3,}}/\d{{1,2}}/\d{{2,4}}|\d{{1,2}}/\d{{3,}}/\d{{2,4}}|\d{{1,2}}/\d{{1,2}}/\d{{5,}}"
     rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{5,}}|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{5,}})(?![\d/])"
 )
 # AM/PM must end at a token boundary: "17:00 America/New_York" is not "17:00 Am".
@@ -126,7 +126,7 @@ TIME_AFTER = re.compile(rf"{_GAP_DATE_TIME}(?P<time>{TIME}|{TIME_MARKER})", re.I
 TZ_AFTER = re.compile(rf"{_GAP_TIME_TZ}(?P<tz>{TZ})", re.I)
 # A zone written directly after a date that has no time of its own. The time-range gap above is not allowed here, so
 # "November 5, 2026 to 5:00 PM ET on November 12" does not lend the second date's zone to the first.
-TZ_ONLY_AFTER = re.compile(rf"[ \t,|/]*\(?[ \t]*(?P<tz>{TZ})", re.I)
+TZ_ONLY_AFTER = re.compile(rf"[ \t,|/]*(?:(?:prevailing|local)\b[ \t,]*)*\(?[ \t]*(?P<tz>{TZ})", re.I)
 # A time (and zone) written immediately before its date: "by 11:00 AM EDT on November 5, 2026".
 TIME_BEFORE_DATE = re.compile(rf"(?P<time>{TIME}|{TIME_MARKER})(?:{_GAP_TIME_TZ}(?P<tz>{TZ})\)?)?[ \t,]*"
                               rf"(?:on or before|no later than|not later than|by|on|of)?[ \t,]*$", re.I)
@@ -148,8 +148,13 @@ TZ_LIKE = re.compile(r"[ \t,(]*(?:(?:UTC|GMT)\s?[+\u2212-]\s?\d|(?:Africa|Americ
 # Amendments: "extended from <old> to <new>", "<old> is extended to <new>", "changed to <new>".
 CHANGE_VERB = r"\b(?:extend|chang|mov|postpon|revis|amend|reschedul|delay|advanc|push)\w*\b"
 FROM_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bfrom\s*$", re.I)
-TO_BEFORE = re.compile(rf"(?:{CHANGE_VERB}[^.;]{{0,60}}?)?\bto(?:\s+read)?[\s:]*$", re.I)
-CHANGE_TO_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bto(?:\s+read)?[\s:]*$", re.I)
+TO_BEFORE = re.compile(rf"(?:{CHANGE_VERB}[^.;]{{0,60}}?)?\bto(?:\s+read(?:\s+as\s+follows)?)?[\s:]*$", re.I)
+CHANGE_TO_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bto(?:\s+read(?:\s+as\s+follows)?)?[\s:]*$", re.I)
+# "is extended to <date>" with no earlier date in the clause is an amendment of a deadline only when the sentence says
+# what changed ("This date", "receipt of Offers", "the response period", "changed to read"), not "the period of
+# performance may be extended". Fail-closed: a validity change that names offers still warns.
+CHANGE_HINT = re.compile(r"\b(?:dates?|hours?|times?|receipt|due|deadline|closing|responses?|proposals?|offers?|quotes?|quotations?"
+                         r"|submissions?)\b|\bto\s+read\b", re.I)
 SENTENCE_END = re.compile(r"[.!?]")
 ZERO_WIDTH = re.compile("[\u200b-\u200d\u2060\ufeff]")
 KIND_RES = [(k, re.compile(p, re.I)) for k, p in DEADLINE_KINDS]
@@ -636,7 +641,8 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
             # These patterns end at `lead` and span at most about 90 characters, so only the last 200 are searched.
             hp = max(prev_end, lead - 200)
             superseded = bool(FROM_BEFORE.search(s, hp, lead))
-            replacement = bool((k > 0 and prev_superseded and TO_BEFORE.search(s, hp, lead)) or CHANGE_TO_BEFORE.search(s, hp, lead))
+            replacement = bool((k > 0 and prev_superseded and TO_BEFORE.search(s, hp, lead))
+                               or (CHANGE_TO_BEFORE.search(s, hp, lead) and (k > 0 or CHANGE_HINT.search(s, hp, lead))))
             after = s[bind_end:nxt]
             strong = STRONG_TRIGGER.search(region)
             event = any(_kind(region) == ek for ek in EVENT_KINDS)
@@ -722,7 +728,7 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
                 z = TZ_AFTER.match(s, t.end())
                 same = (out[i].time is not None and _time_key(t.group(0)) == _time_key(out[i].time)
                         and (z is None or _zone_key(z.group("tz")) == _zone_key(out[i].timezone)))
-                duration = DURATION_HOURS.fullmatch(t.group(0)) or DURATION_BEFORE.search(s, max(0, t.start() - 8), t.start())
+                duration = DURATION_HOURS.fullmatch(t.group(0))
                 if not same and not duration:
                     written = _norm_ws(t.group(0) + (" " + z.group("tz") if z else ""))
                     out[i].ambiguities.append(f"other_time:{written}")
@@ -761,8 +767,9 @@ def _requirements_in(st: _Statement) -> list[dict]:
     return out
 
 
-DURATION_HOURS = re.compile(r"\d{3}\s*(?:hours|hrs)", re.I)  # "within 120 hours" is a duration, not a clock time
-DURATION_BEFORE = re.compile(r"\b(?:within|for)\s+$", re.I)
+# ponytail: "within 120 hours" is a duration, not a clock time; a three-digit military time ("900 hours") is also
+# skipped. Add a context check if such times matter.
+DURATION_HOURS = re.compile(r"\d{3}\s*(?:hours|hrs)", re.I)
 
 
 @functools.lru_cache(maxsize=4096)

@@ -72,7 +72,9 @@ Known cases where `--strict` fails although nothing is wrong: the same time rest
 ("5:00 PM ET (2:00 PM PT)"), because the tool does not convert zones; office hours in the deadline's
 sentence ("; hand-carried proposals are accepted between 8:00 AM and 4:00 PM ET"); and slash-separated part
 or document numbers that look like dates (`123/45/6789`). Known gap: an amendment that changes only a time,
-in a sentence with no date ("The closing time is revised from 5:00 PM ET to 3:00 PM ET."), is not detected.
+in a sentence with no date ("The closing time is revised from 5:00 PM ET to 3:00 PM ET."), is not detected, and
+when such a change is written next to a date the old time may be the one reported (flagged as withdrawn). Also a
+known strict false positive: a period-of-performance or validity change that names a date, time or receipt.
 
 ## Library
 
