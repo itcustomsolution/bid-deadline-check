@@ -76,8 +76,12 @@ the implemented checks fired:
   keyword based, so they also miss revisions: a dateless change whose subject is not one of the deadline
   names above ("Receipt of offers is extended by one week.", "The submission window is extended by ten
   days.", "Closing extended one week."), an SF-30 Block 11 box checked as "[X] is extended", "due one week
-  later", and a time written without a change word ("Amendment 0004: submit proposals by 3:00 PM ET.")
-  give `--strict` 0 with only the old deadline; and
+  later", a time written without a change word ("Amendment 0004: submit proposals by 3:00 PM ET."), a
+  suspension ("suspended pending the outcome of a protest"), "Offers due: TBD", "slides one week", a zone
+  change ("Central Time, not Eastern Time") and a new date stated without change wording ("Proposals will be
+  accepted until November 12, 2026 at 5:00 PM ET." beside the old one) give `--strict` 0 with only the old
+  deadline. In the last internal review, 5 of 10 fresh revision sentences passed `--strict`: treat a clean
+  `--strict` result as "no implemented check fired", never as "no amendment changed a deadline"; and
 - the input decoded without replacement characters, and extraction did not stop at its per-document
   limits.
 
