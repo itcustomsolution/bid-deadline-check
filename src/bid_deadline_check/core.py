@@ -19,17 +19,22 @@ MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|A
 # ("2027-01-01/2027-06-30"). One gate in front of every form keeps the pattern from trying each month name inside
 # each word.
 _DATE_GATE = r"(?:(?<![A-Za-z\d/])|(?-i:(?<=[a-z])(?=[A-Z]))|(?<=[A-Za-z])(?=\d)|(?<=\d/)(?=\d{4}-))"  # last: ISO interval end
+_NAMED_DATE = rf"{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{4}}"
+# A date also ends before a letter ("November 5, 2026oops" is not November 5); an ISO date may run into its "T".
 DATE = (
     rf"{_DATE_GATE}(?:(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s+)?"
-    rf"(?:{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}"
-    rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{4}}"
-    rf"|\d{{1,2}}/\d{{1,2}}/\d{{2,4}}(?!/)"
-    rf"|\d{{4}}-\d{{2}}-\d{{2}})(?!\d)"
+    rf"(?:(?:{_NAMED_DATE}|\d{{1,2}}/\d{{1,2}}/\d{{2,4}}(?!/))(?![A-Za-z\d])"
+    rf"|\d{{4}}-\d{{2}}-\d{{2}}(?!\d|(?![Tt])[A-Za-z]))"
 )
-# Date-like tokens in an unsupported form are reported instead of silently skipped.
+# Date-like tokens in an unsupported form are reported instead of silently skipped: too many digits, a date glued to
+# letters, a digit glued to a month name ("5November 2026", "November5, 2026") and a year typed with a letter ("2O26").
+_LETTER_YEAR = r"(?=[\dOoIl]{4}(?![A-Za-z\d]))(?!\d{4})[\dOoIl]{4}"
 MALFORMED_DATE = (
-    rf"{_DATE_GATE}(?:\d{{3,}}/\d{{1,2}}/\d{{2,4}}|\d{{1,2}}/\d{{3,}}/\d{{2,4}}|\d{{1,2}}/\d{{1,2}}/\d{{5,}}"
+    rf"{_DATE_GATE}(?:(?:\d{{3,}}/\d{{1,2}}/\d{{2,4}}|\d{{1,2}}/\d{{3,}}/\d{{2,4}}|\d{{1,2}}/\d{{1,2}}/\d{{5,}}"
     rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{5,}}|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{5,}})(?![\d/])"
+    rf"|(?:{_NAMED_DATE}|\d{{1,2}}/\d{{1,2}}/\d{{2,4}})(?=[A-Za-z])|\d{{4}}-\d{{2}}-\d{{2}}(?=(?![Tt])[A-Za-z])"
+    rf"|\d{{1,2}}(?:st|nd|rd|th)?{MONTHS}\s*\d{{4}}(?!\d)|{MONTHS}\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}(?!\d)"
+    rf"|(?:{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+|\d{{1,2}}/\d{{1,2}}/){_LETTER_YEAR})"
 )
 # AM/PM must end at a token boundary: "17:00 America/New_York" is not "17:00 Am".
 AMPM = r"(?:[ap]\.\s?m\.?|[ap]m)(?![a-z])"
