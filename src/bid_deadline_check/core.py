@@ -30,7 +30,7 @@ DATE = (
 # a letter typed for a digit ("2O26", "November l2, 2026", "11/O3/2026", "2O26-11-03"), dashed forms ("12-NOV-2026",
 # "11-12-2026") and a two-digit year after a month name ("03 NOV 26").
 _LETTER_YEAR = r"(?=[\dOoIl]{4}(?![A-Za-z\d]))(?!\d{4})[\dOoIl]{4}"
-_HAS_LETTER = r"(?=[\dOoIl/\-]*[OoIl])"  # a digit-like token containing at least one letter
+_HAS_LETTER = r"(?=[\dOoIl/\-]{0,9}[OoIl])"  # a letter within the token's ten characters; bounded, so runs stay linear
 MALFORMED_DATE = (
     rf"{_DATE_GATE}(?:(?:\d{{3,}}/\d{{1,2}}/\d{{2,4}}|\d{{1,2}}/\d{{3,}}/\d{{2,4}}|\d{{1,2}}/\d{{1,2}}/\d{{5,}}"
     rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{5,}}|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{5,}})(?![\d/])"
@@ -178,7 +178,8 @@ FROM_BEFORE = re.compile(rf"(?:{CHANGE_VERB}[^.;]{{0,60}}?|{DEADLINE_NOUN}[\s:,\
 # Only short connecting words may follow, so "as previously announced, proposals are due <date>" is not withdrawn.
 PREVIOUS_BEFORE = re.compile(r"(?:\b(?:previously|formerly|originally)(?:\s+(?:was|were|been|is|set|scheduled|due|for|at|on|of|as))*"
                              r"|\(\s*was)[\s,:]*$", re.I)
-NOW_BEFORE = re.compile(r"\bnow(?:\s+(?:due|set|scheduled|extended|changed|moved|on|for|at|by|until|reads?))*[\s,:]*$", re.I)
+NOW_BEFORE = re.compile(r"\bnow(?:\s+(?:be|being|due|set|scheduled|extended|changed|moved|accept|accepted|received?|submitted"
+                        r"|proposals?|offers?|quotes?|bids?|responses?|submissions?|on|for|at|by|until|through|reads?))*[\s,:]*$", re.I)
 # A sentence that changes something: any other date in it that is not read as a deadline is named in a warning.
 CHANGE_WORDS = re.compile(rf"{CHANGE_VERB}|\b(?:now|previously|formerly|originally|instead|in lieu|replac\w*|supersed\w*"
                           rf"|reset|updat\w*|correct\w*|modif\w*|new)\b", re.I)
@@ -201,6 +202,9 @@ CHANGE_TERM = re.compile(
     r"|(?:old|new)\s*:|new\s+(?:\w+\s+)?(?:date|deadline|time)|now\s+(?:reads?|due|set|scheduled|closes?|ends?)\b"
     rf"|now\s+{_DATE_NEXT})|\(\s*was\b|,\s*not\s+{_DATE_NEXT}", re.I)
 NOUN_THEN_FROM = re.compile(rf"{DEADLINE_NOUN}[\s:,\-]*from\b", re.I)
+# A clause with no date that changes a clock time: change wording (or "now"), a deadline hint and a clock time. Verb
+# forms only, so the FAR late-receipt text ("offers or revisions are due") and "New offerors must register by" pass.
+TIME_CHANGE = re.compile(rf"{CHANGE_TERM.pattern}|\bnow\b", re.I)
 DEADLINE_NOUN_RE = re.compile(DEADLINE_NOUN, re.I)
 # "is extended to <date>" with no earlier date in the clause is an amendment of a deadline only when the sentence says
 # what changed ("This date", "receipt of Offers", "the response period", "the question period", any deadline kind
@@ -936,6 +940,12 @@ def analyze(text: str) -> Report:
     capped = []
     revisions: list[int] = []  # lines of clauses that appear to change a deadline in a way that was not read
     for st in _statements(lines):
+        pos = 0
+        for sent in iter_sentences(st.text):
+            start, pos = pos, pos + len(sent)
+            if (TIME_CHANGE.search(sent) and (CHANGE_HINT.search(sent) or STRONG_TRIGGER.search(sent) or _kind(sent))
+                    and not DATE_RE.search(sent) and any(not DURATION_HOURS.fullmatch(t.group(0)) for t in TIME_RE.finditer(sent))):
+                revisions.append(st.line_at(start + len(sent) - len(sent.lstrip())))
         adjacent = prev is not None and prev.starts[-1][1] + 1 == st.starts[0][1] and len(prev.text) <= 200
         if len(r.deadlines) < MAX_DEADLINES:
             r.deadlines += _deadlines_in(st, prev.text if adjacent else "", MAX_DEADLINES - len(r.deadlines), revisions)
@@ -1020,6 +1030,7 @@ def analyze(text: str) -> Report:
                 r.warnings.append(f"Line {i} has a date-like value in a form this tool does not read (\"{_norm_ws(m.group(0))[:40]}\"); check it in the source.")
     if malformed > MAX_MALFORMED_WARNINGS:
         r.warnings.append(f"{malformed - MAX_MALFORMED_WARNINGS} more date-like values in unsupported forms are not listed.")
+    revisions = list(dict.fromkeys(revisions))  # one warning per line, whichever check found it
     for i in revisions[:MAX_MALFORMED_WARNINGS]:
         r.warnings.append(f"Line {i} appears to change a deadline in a way this tool does not read; confirm the new date and time in the source.")
     if len(revisions) > MAX_MALFORMED_WARNINGS:

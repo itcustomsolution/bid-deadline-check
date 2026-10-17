@@ -86,3 +86,8 @@ later is required, and the PDF extra needs pypdf 6.21.0 or later.
   named as an unread date; fractions are read in non-ISO times and with a decimal comma; more date-like forms are
   reported (`November 12,2026`, `12-NOV-2026`, `11-12-2026`, `03 NOV 26`, letters for digits), and a date followed
   by `_` is flagged; a digit glued to a month name inside a part number is no longer reported.
+- r3 second review round (kofi): the dateless-time check is restored beside the clause check (verb forms of change
+  words or "now", a deadline word and a clock time, no date), so "Proposals must now be received by 3:00 PM ET" and
+  "The closing hour is changed to 3:00 PM ET" fail `--strict` again; "will now be accepted until <date>" is a
+  replacement again; a letter-for-digit pattern that rescanned long runs of dashes is bounded (it was quadratic, new
+  in this candidate). The README lists the revision forms both checks still miss and the hedged sentences they flag.

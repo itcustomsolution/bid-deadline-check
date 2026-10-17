@@ -69,9 +69,15 @@ the implemented checks fired:
   "proposals are now due", an SF form block) and uses change wording ("extended", "postponed", "revised",
   "now <date or time>", "new date", "vice", "in place of", "rather than", ", not <date>", "(was <date>)",
   "formerly", "originally", "from ... to ...", and so on) without one of its dates being read as a
-  replacement. This is what makes a revision fail `--strict` when the tool cannot read it: a change
-  with no date ("postponed until further notice"), a new date in a form it does not read, a new date in
-  the next sentence, or a time-only change; and
+  replacement, and no clause without a date has change wording (or "now"), a deadline word and a clock
+  time ("Proposals must now be received by 3:00 PM ET."). These two checks are what make a revision fail
+  `--strict` when the tool cannot read it: a change with no date ("postponed until further notice"), a new
+  date in a form it does not read, a new date in the next sentence, or a time-only change. They are
+  keyword based, so they also miss revisions: a dateless change whose subject is not one of the deadline
+  names above ("Receipt of offers is extended by one week.", "The submission window is extended by ten
+  days.", "Closing extended one week."), an SF-30 Block 11 box checked as "[X] is extended", "due one week
+  later", and a time written without a change word ("Amendment 0004: submit proposals by 3:00 PM ET.")
+  give `--strict` 0 with only the old deadline; and
 - the input decoded without replacement characters, and extraction did not stop at its per-document
   limits.
 
@@ -88,8 +94,10 @@ registration, site visit, and so on); an issue or amendment word between the dea
 the date stated in Amendment 0002, November 12, 2026"); any other date in a deadline's sentence when that sentence
 has change wording ("new", "now", "updated", "extended", and so on), such as a performance period in the same
 sentence as an extended deadline; and any clause that names a deadline and uses change wording without a date read
-as a replacement, for example "No extension of the closing date will be granted" or "Offerors may not substitute
-key personnel after the proposal due date". A change that the tool cannot read is reported, not read: the warning
+as a replacement, including hedged or hypothetical sentences: "Requests for extension of the proposal due date will
+not be granted", "The Government reserves the right to amend the solicitation and extend the proposal due date",
+"Proposals may be modified or withdrawn at any time before the closing date", and the FAR 52.212-1(f)(4) emergency
+sentence ("... the time specified for receipt of offers will be deemed to be extended ..."). A change that the tool cannot read is reported, not read: the warning
 names its line, and the reader confirms the new date or time in the source. When a time-only change is written next
 to a date, the old time may be the one reported (flagged as withdrawn or as another time). Dates after an issue
 word ("issued", "posted", "dated", and so on) with no deadline word before them are skipped as issue dates and are

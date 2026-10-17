@@ -157,3 +157,38 @@ def test_now_scan_stays_linear():
     t0 = time.perf_counter(); analyze(text(1000)); small = time.perf_counter() - t0
     t0 = time.perf_counter(); analyze(text(4000)); large = time.perf_counter() - t0
     assert large < 6 * small + 0.2, (small, large)  # four times the input: linear is about 4x, quadratic about 16x
+
+
+# kofi's second round (r3b): regressions in 576356f against 7ef971b, and a quadratic pattern.
+@pytest.mark.parametrize("tail", [
+    "Proposals will now be accepted until November 12, 2026 at 5:00 PM ET.",
+    "Offers will now be accepted through November 12, 2026 at 5:00 PM ET.",
+    "The portal will now accept proposals until November 12, 2026 at 5:00 PM ET.",
+])
+def test_r3b_new_1_now_accepted_until_is_a_replacement(tmp_path, tail):
+    r = analyze(O + tail)
+    assert any(d.date == "November 12, 2026" and "replaces_earlier_date" in d.ambiguities for d in r.deadlines)
+    assert strict(tmp_path, O + tail) == 2
+
+
+@pytest.mark.parametrize("tail", [
+    "Proposals must now be received by 3:00 PM ET.",
+    "Offers must now be submitted no later than 3:00 PM ET.",
+    "Proposals must be received by 3:00 PM ET instead of 5:00 PM ET.",
+    "The closing hour is changed to 3:00 PM ET.",
+    "The bid opening time is changed to 3:00 PM ET.",
+    "The time by which offers must be received is changed to 3:00 PM ET.",
+    "The hour for receipt of proposals is revised to 3:00 PM ET.",
+    "The cutoff is changed to 3:00 PM ET.",
+])
+def test_r3b_new_2_a_dateless_time_change_fails_strict_again(tmp_path, tail):
+    assert any("appears to change a deadline" in w for w in analyze(O + tail).warnings)
+    assert strict(tmp_path, O + tail) == 2
+
+
+@pytest.mark.parametrize("unit", ["-", "1-", "O/", "1O-1"])
+def test_r3b_new_3_letter_digit_runs_stay_linear(unit):
+    def run(n):
+        t0 = time.perf_counter(); analyze(BASE + unit * (n // len(unit))); return time.perf_counter() - t0
+    small, large = run(20_000), run(80_000)
+    assert large < 6 * small + 0.3, (unit, small, large)
