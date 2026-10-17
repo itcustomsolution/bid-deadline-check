@@ -39,7 +39,15 @@ MALFORMED_DATE = (
     rf"|(?:{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+|\d{{1,2}}/\d{{1,2}}/){_LETTER_YEAR}"
     rf"|{MONTHS}\s+(?=[\dOoIl]{{1,2}}(?![\w]))(?!\d{{1,2}}(?![\w]))[\dOoIl]{{1,2}},?\s+\d{{4}}(?!\d)"
     rf"|{_HAS_LETTER}[\dOoIl]{{4}}-[\dOoIl]{{2}}-[\dOoIl]{{2}}(?![\w-])|{_HAS_LETTER}[\dOoIl]{{1,2}}/[\dOoIl]{{1,2}}/[\dOoIl]{{2,4}}(?![\w/])"
-    rf"|\d{{1,2}}-{MONTHS}-\d{{2,4}}(?![\w-])|\d{{1,2}}-\d{{1,2}}-\d{{4}}(?![\w-])|\d{{1,2}}\s+{MONTHS}\s+\d{{2}}(?![\w]))"
+    rf"|\d{{1,2}}-{MONTHS}-\d{{2,4}}(?![\w-])|\d{{1,2}}-\d{{1,2}}-\d{{4}}(?![\w-])|\d{{1,2}}\s+{MONTHS}\s+\d{{2}}(?![\w])"
+    # An ISO date with a component of the wrong length ("2026-11-005", "2026-111-05", "20260-11-05"), a year-first date
+    # with "/" or "." ("2026/11/12"), a day-month-year with dots ("12.11.2026"), an extra slash part ("11/12/2026/2027"),
+    # a named date with a two-digit year ("November 12, 26") or a comma after the month ("November, 12, 2026"). The year
+    # must look like one (19xx or 20xx), so section, part and paragraph numbers are not reported.
+    rf"|(?!\d{{4}}-\d{{2}}-\d{{2}}(?![\w-]))(?:19|20)\d{{2,3}}-\d{{1,3}}-\d{{1,3}}(?![\w-])"
+    rf"|(?:19|20)\d{{2}}/\d{{1,2}}/\d{{1,2}}(?![\w/]|\.\d)|(?:19|20)\d{{2}}\.\d{{1,2}}\.\d{{1,2}}(?![\w]|\.\d)"
+    rf"|\d{{1,2}}\.\d{{1,2}}\.(?:19|20)\d{{2}}(?![\w]|\.\d)|\d{{1,2}}/\d{{1,2}}/\d{{4}}/\d{{1,4}}(?![\w/])"
+    rf"|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,\s*\d{{2}}(?![\w,]|\.\d)|{MONTHS},\s*\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}(?!\d))"
     # A digit glued to a month name, but not inside a longer token such as a part number ("47QTCA22D00MAR 2026").
     rf"|(?<![A-Za-z\d])\d{{1,2}}(?:st|nd|rd|th)?{MONTHS}\s*\d{{4}}(?!\d)"
 )
@@ -54,7 +62,7 @@ TIME_MARKER = r"\b(?:midnight|EOD|COB|EOB|end of (?:the )?(?:business )?day|clos
 # Longer forms first, so "UTC-04:00" is never reported as "UTC" and IANA names are kept whole.
 # A zone must end at a token boundary, so "UTC+05:300" or a four-part IANA name never becomes a shorter valid one.
 TZ = (r"\b(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/[A-Za-z][A-Za-z0-9_+\-]{0,30}(?:/[A-Za-z][A-Za-z0-9_+\-]{0,30})?(?![A-Za-z0-9_+\-/])"
-      r"|\b(?:UTC|GMT)\s?[+\u2212-]\s?\d{1,2}(?::?\d{2})?(?![\d:])"
+      r"|\b(?:UTC|GMT)\s?[+\u2212-]\s?\d{1,2}(?::?\d{2})?(?![\d:]|\.\d)"
       r"|\b(?:Eastern|Central|Mountain|Pacific|Alaska|Hawaii)(?:\s+(?:Standard|Daylight|Prevailing))?\s+Time\b"
       r"|(?-i:\b(?:E|C|M|P|AK|H)[SD]?T\b)|\b(?:UTC|GMT)\b(?!\s?[+\u2212-]\s?\d)|\bZulu\b|\blocal time\b")
 
@@ -142,7 +150,7 @@ TZ_ONLY_AFTER = re.compile(rf"[ \t,|/]*(?:(?:prevailing|local)\b[ \t,]*)*\(?[ \t
 # A time (and zone) written immediately before its date: "by 11:00 AM EDT on November 5, 2026".
 TIME_BEFORE_DATE = re.compile(rf"(?P<time>{TIME}|{TIME_MARKER})(?:{_GAP_TIME_TZ}(?P<tz>{TZ})\)?)?[ \t,]*"
                               rf"(?:on or before|no later than|not later than|by|on|of)?[ \t,]*$", re.I)
-ISO_TIME = re.compile(r"T(\d{2}:\d{2}(?::\d{2}(?:[.,]\d{1,9})?)?)(Z|[+\u2212-]\d{2}:?\d{2})?(?![\d:])")
+ISO_TIME = re.compile(r"T(\d{2}:\d{2}(?::\d{2}(?:[.,]\d{1,9})?)?)(Z|[+\u2212-]\d{2}:?\d{2}(?!\.\d))?(?![\d:])")
 STRONG_TRIGGER = re.compile(r"\b(?:due|deadline|no later than|not later than|NLT|closing|closes|close[sd]?|on or before|cut-?off)\b", re.I)
 WEAK_TRIGGER = re.compile(r"\b(?:submit(?:ted)?|received|delivered|by|before|prior to|opening)\b", re.I)
 ISSUANCE = re.compile(r"\b(?:issued|issue date|posted|released|published|dated|amend(?:ed|ment)|modified|effective|as of|awarded|signed)\b", re.I)
@@ -167,7 +175,7 @@ VOIDED_AFTER = re.compile(r"\b(?:no longer|not\s+(?:be\s+)?(?:in effect|applicab
                           r"|removed|amended|void)|resolicit\w*)\b", re.I)
 CONDITIONAL = re.compile(r"\b(?:unless|if|in the event)\b.*", re.I | re.S)
 # Something written where a zone would be, in a form TZ does not accept ("UTC+05:300", "America/A/B/C/D").
-TZ_LIKE = re.compile(r"[ \t,(]*(?:(?:UTC|GMT)\s?[+\u2212-]\s?\d|(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/)", re.I)
+TZ_LIKE = re.compile(r"[ \t,(]*(?:(?:UTC|GMT)\s?[+\u2212-]\s?\d|[+\u2212-]\d{2}:?\d{2}\.\d|(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific|Etc)/)", re.I)
 # Amendments: "extended from <old> to <new>", "<old> is extended to <new>", "changed to <new>".
 # Verb forms only. "slide", "slides" and "sliding" count only before a shift ("slides two weeks", "slides back"), so
 # presentation slides and a sliding scale do not; "slid" counts alone.
@@ -582,7 +590,7 @@ def _date_parts(date: str):
     s = re.sub(r"^(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s+", "", date, flags=re.I)
     if (m := re.fullmatch(r"([A-Za-z]+)\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})", s, re.I)):
         return int(m.group(3)), _MONTH_NUM[m.group(1)[:3].lower()], int(m.group(2))
-    if (m := re.fullmatch(r"(\d{1,2})\s+([A-Za-z]+)\.?\s+(\d{4})", s, re.I)):
+    if (m := re.fullmatch(r"(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\.?\s+(\d{4})", s, re.I)):
         return int(m.group(3)), _MONTH_NUM[m.group(2)[:3].lower()], int(m.group(1))
     if (m := re.fullmatch(r"(\d{1,2})/(\d{1,2})/(\d{2,4})", s)):
         return "two_digit_year" if len(m.group(3)) != 4 else (int(m.group(3)), int(m.group(1)), int(m.group(2)))
@@ -595,8 +603,8 @@ def _date_issues(date: str) -> list[str]:
     parts = _date_parts(date)
     if parts == "two_digit_year":
         return ["two_digit_year"]
-    if parts is None:
-        return []
+    if parts is None:  # an extracted date this tool cannot check against the calendar: fail closed
+        return ["invalid_date"]
     y, mo, d = parts
     if not (1 <= mo <= 12) or not (1 <= d <= calendar.monthrange(y, mo)[1]):
         return ["invalid_date"]

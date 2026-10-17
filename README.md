@@ -52,7 +52,8 @@ WARNINGS
 the implemented checks fired:
 
 - a proposal due date and a questions-due date were found (and neither is negated or withdrawn);
-- every extracted deadline has a valid calendar date, a clock time (or "noon") and a timezone, all
+- every extracted deadline has a valid calendar date (a date the tool extracts but cannot check, such as an
+  ordinal it does not parse, is flagged `invalid_date`), a clock time (or "noon") and a timezone, all
   bound to the same clause, with no "EOD"/"midnight"/close-of-business marker and no two-digit year,
   and none is flagged as withdrawn or superseded, as replacing an earlier date, as possibly an issue
   date, as sharing its sentence with another clock time or with a date not read as a deadline in a
@@ -62,8 +63,10 @@ the implemented checks fired:
 - no requirement was reported as an excerpt;
 - page limits were found;
 - no date-like value was found in a form the tool does not read (for example `111/05/2026`,
-  `5November 2026`, `November 12,2026`, `12-NOV-2026`, `11-12-2026`, `03 NOV 26`, or a letter typed for a
-  digit as in `2O26` or `November l2, 2026`), and no deadline's date or zone runs into the text after it
+  `5November 2026`, `November 12,2026`, `12-NOV-2026`, `11-12-2026`, `03 NOV 26`, `November 12, 26`,
+  `November, 12, 2026`, an ISO date with a component of the wrong length such as `2026-11-005`, a year-first
+  date with `/` or `.`, `12.11.2026`, `11/12/2026/2027`, or a letter typed for a digit as in `2O26` or
+  `November l2, 2026`; only these listed forms are screened, and a year must look like 19xx or 20xx), and no deadline's date or zone runs into the text after it
   (`November 5, 2026x` and `November 5, 2026_draft` are read as November 5 and flagged; `17:00:00Zdraft` and
   `UTC+05:30junk` are read as `Z` and `UTC+05:30` and flagged);
 - no clause both names a deadline ("proposal due date", "closing time", "deadline", "time for receipt",
@@ -92,7 +95,8 @@ the implemented checks fired:
 
 It does **not** mean that every deadline or requirement in the document was found, that the extracted
 values are what the agency intended, that a timezone is valid, or that a submission would be timely.
-Read the solicitation and every amendment yourself.
+`--strict` is an extraction aid, not a deadline or amendment safety gate: it misses some revisions and fails
+on some ordinary sentences (see below). Read the solicitation and every amendment yourself.
 
 Known cases where `--strict` fails although nothing is wrong: the same time restated in another zone
 ("5:00 PM ET (2:00 PM PT)"), because the tool does not convert zones; office hours in the deadline's
@@ -149,7 +153,10 @@ short or is in an unsupported form, such as `UTC+05:30:15`), `statement_split_at
   judgement of whether a submission is on time. Numeric dates such as `10/05/2026` are not
   re-ordered; two-digit years are flagged.
 - Signed UTC/GMT offsets (`UTC-04:00`), ISO offsets (`2026-11-05T17:00:00-04:00`) and IANA names
-  (`America/New_York`) are kept exactly; IANA names are not checked against a timezone database.
+  (`America/New_York`) are kept exactly; IANA names are not checked against a timezone database. An offset
+  followed by a fraction (`UTC+05:30.5`, `GMT+5.5`, `-04:00.5`) is not shortened: it is flagged
+  `timezone_unclear`. Only the first zone written for a time is read: a second zone for the same time
+  (`5:00 PM ET or CT`, `5:00 PM EST (Eastern Daylight Time)`) is not reported.
 - Rules are keyword based and match whole words, so "registered", "conference call", "questionnaire"
   and "offeror" do not name a kind of deadline. When a clause names both a submission ("submit
   proposals") and something else ("industry day", "registration"), the submission wins. A date is
