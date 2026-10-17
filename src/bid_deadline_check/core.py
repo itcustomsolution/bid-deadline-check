@@ -223,7 +223,8 @@ class Deadline:
     end_line: int | None = None
     # Codes for anything a reader must check: no_time, no_timezone, time_marker:<text>, invalid_date,
     # invalid_time, two_digit_year, negated_or_withdrawn, after_clause, kind_uncertain, timezone_unclear,
-    # context_truncated (informational: only the excerpt was shortened), statement_split_at_limit.
+    # context_truncated (informational: only the excerpt was shortened), statement_split_at_limit, issue_date_possible,
+    # replaces_earlier_date, other_time:<text>.
     ambiguities: list[str] = field(default_factory=list)
 
 
@@ -704,6 +705,9 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
                 amb.append("negated_or_withdrawn")
             if replacement:
                 amb.append("replaces_earlier_date")
+            elif strong and (iss := [m.start() for m in ISSUANCE.finditer(region)]) and \
+                    iss[-1] > max(m.start() for m in STRONG_TRIGGER.finditer(region)):
+                amb.append("issue_date_possible")  # "the proposal due date was issued <date>": the issue word is nearer
             prev_kind, prev_superseded = kind, "negated_or_withdrawn" in amb
             if AFTER_WORD.search(region) and not strong:
                 amb.append("after_clause")  # "Offers received after <date> will not be considered"
@@ -897,6 +901,8 @@ def analyze(text: str) -> Report:
             elif a == "timezone_unclear":
                 r.warnings.append(f"Deadline on line {d.line}: timezone \"{d.timezone}\" may be cut short; read the source text." if d.timezone
                                   else f"Deadline on line {d.line}: the timezone is written in a form this tool does not support; read the source text.")
+            elif a == "issue_date_possible":
+                r.warnings.append(f"Deadline on line {d.line}: \"{d.date}\" follows an issue or amendment word; confirm it is a deadline and not the date the document was issued.")
             elif a == "replaces_earlier_date":
                 r.warnings.append(f"Deadline on line {d.line} replaces an earlier date in the same sentence; confirm it against the amendment.")
             elif a.startswith("other_time:"):

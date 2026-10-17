@@ -74,3 +74,27 @@ def test_r2_dl_4_controls_still_read(tail, date):
     r = analyze(BASE + tail)
     assert [d.date for d in r.deadlines if d.kind == "proposal_due"] == [date]
     assert not any("date-like value" in w for w in r.warnings)
+
+
+# R2-DL-2: an issue or amendment date written after the deadline words is not reported as a clean deadline.
+@pytest.mark.parametrize("tail", [
+    "Amendment 0004 for the proposal due date was issued October 2, 2026 at 5:00 PM ET.",
+    "The amendment changing the proposal deadline was posted October 2, 2026 at 5:00 PM ET.",
+    "The notice about the closing date was released October 2, 2026 at 5:00 PM ET.",
+])
+def test_r2_dl_2_an_issue_date_after_deadline_words_is_flagged(tmp_path, tail):
+    r = analyze(BASE + tail)
+    assert not any(d.kind == "proposal_due" and not d.ambiguities for d in r.deadlines)
+    assert strict(tmp_path, BASE + tail) == 2
+
+
+def test_r2_dl_2_issued_then_sets_the_due_date_control(tmp_path):
+    text = BASE + "Amendment 0004 issued October 2, 2026 at 5:00 PM ET sets the proposal due date to November 12, 2026 at 5:00 PM ET."
+    assert proposals(analyze(text)) == [("November 12, 2026", "5:00 PM", "ET", [])]
+    assert strict(tmp_path, text) == 0
+
+
+def test_r2_dl_2_issue_words_before_the_deadline_words_are_not_flagged(tmp_path):
+    text = BASE + "As amended, proposals are due November 12, 2026 at 5:00 PM ET."
+    assert proposals(analyze(text)) == [("November 12, 2026", "5:00 PM", "ET", [])]
+    assert strict(tmp_path, text) == 0
