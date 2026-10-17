@@ -59,7 +59,7 @@ the implemented checks fired:
   an unclear or unsupported timezone;
 - no kind of deadline has two different values (for example an amended due date);
 - no requirement was reported as an excerpt;
-- page limits were found; and
+- page limits were found;
 - no date-like value was found in a form the tool does not read (for example `111/05/2026`); and
 - the input decoded without replacement characters, and extraction did not stop at its per-document
   limits.
@@ -67,6 +67,12 @@ the implemented checks fired:
 It does **not** mean that every deadline or requirement in the document was found, that the extracted
 values are what the agency intended, that a timezone is valid, or that a submission would be timely.
 Read the solicitation and every amendment yourself.
+
+Known cases where `--strict` fails although nothing is wrong: the same time restated in another zone
+("5:00 PM ET (2:00 PM PT)"), because the tool does not convert zones; office hours in the deadline's
+sentence ("; hand-carried proposals are accepted between 8:00 AM and 4:00 PM ET"); and slash-separated part
+or document numbers that look like dates (`123/45/6789`). Known gap: an amendment that changes only a time,
+in a sentence with no date ("The closing time is revised from 5:00 PM ET to 3:00 PM ET."), is not detected.
 
 ## Library
 

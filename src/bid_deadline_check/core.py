@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import bisect
 import calendar
+import functools
 import itertools
 import json
 import re
@@ -12,18 +13,23 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
 MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?"
-# A date must be a whole token: "111/05/2026" or "November 5, 20260" is not shortened into a valid-looking date.
+# A date's numbers must be whole: "111/05/2026" or "November 5, 20260" is not shortened into a valid-looking date.
+# A date starts after a non-letter, non-digit, non-slash character, or glued to a word as a capital after a lowercase
+# letter ("onNovember 5") or as a digit after a letter ("due11/05/2026"), or as the second ISO date of an interval
+# ("2027-01-01/2027-06-30"). One gate in front of every form keeps the pattern from trying each month name inside
+# each word.
+DATE_START = r"(?:(?<![A-Za-z\d/])|(?-i:(?<=[a-z])(?=[A-Z]))|(?<=[A-Za-z])(?=\d)|(?<=\d/)(?=\d{4}-))"  # last: ISO interval end
 DATE = (
-    rf"(?<![\w/])(?:(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s+)?"
+    rf"{DATE_START}(?:(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s+)?"
     rf"(?:{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}"
-    rf"|\d{{1,2}}\s+{MONTHS}\s+\d{{4}}"
-    rf"|\d{{1,2}}/\d{{1,2}}/\d{{2,4}}"
-    rf"|\d{{4}}-\d{{2}}-\d{{2}})(?![\d/])"
+    rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{4}}"
+    rf"|\d{{1,2}}/\d{{1,2}}/\d{{2,4}}(?!/)"
+    rf"|\d{{4}}-\d{{2}}-\d{{2}})(?!\d)"
 )
 # Date-like tokens in an unsupported form are reported instead of silently skipped.
 MALFORMED_DATE = (
-    rf"(?<![\w/])(?:\d{{3,}}/\d{{1,2}}/\d{{2,4}}|\d{{1,2}}/\d{{3,}}/\d{{2,4}}|\d{{1,2}}/\d{{1,2}}/\d{{5,}}"
-    rf"|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{5,}}|\d{{1,2}}\s+{MONTHS}\s+\d{{5,}})(?![\w/])"
+    rf"{DATE_START}(?:\d{{3,}}/\d{{1,2}}/\d{{2,4}}|\d{{1,2}}/\d{{3,}}/\d{{2,4}}|\d{{1,2}}/\d{{1,2}}/\d{{5,}}"
+    rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\s+\d{{5,}}|{MONTHS}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{5,}})(?![\d/])"
 )
 # AM/PM must end at a token boundary: "17:00 America/New_York" is not "17:00 Am".
 AMPM = r"(?:[ap]\.\s?m\.?|[ap]m)(?![a-z])"
@@ -104,6 +110,7 @@ MALFORMED_DATE_RE = re.compile(MALFORMED_DATE, re.I)
 DATE_START = re.compile(rf"\s*(?:{DATE})", re.I)
 MAX_DEADLINES = 2000      # per document; beyond this extraction stops and says so
 MAX_OTHER_TIMES = 5       # other times recorded per deadline
+MAX_MALFORMED_WARNINGS = 50  # date-like values reported one by one; the rest are counted
 MAX_REQUIREMENTS = 10000
 TIME_RE = re.compile(rf"{TIME}|{TIME_MARKER}", re.I)
 MARKER_RE = re.compile(TIME_MARKER, re.I)
@@ -117,6 +124,9 @@ _GAP_TIME_TZ = (rf"[ \t,|/]*(?:(?:hrs|hours|sharp|prevailing|local)\b[ \t,]*)*"
                 rf"(?:(?:-|\u2013|to|until|through)[ \t]*(?:{TIME})[ \t,]*)?\(?[ \t]*")
 TIME_AFTER = re.compile(rf"{_GAP_DATE_TIME}(?P<time>{TIME}|{TIME_MARKER})", re.I)
 TZ_AFTER = re.compile(rf"{_GAP_TIME_TZ}(?P<tz>{TZ})", re.I)
+# A zone written directly after a date that has no time of its own. The time-range gap above is not allowed here, so
+# "November 5, 2026 to 5:00 PM ET on November 12" does not lend the second date's zone to the first.
+TZ_ONLY_AFTER = re.compile(rf"[ \t,|/]*\(?[ \t]*(?P<tz>{TZ})", re.I)
 # A time (and zone) written immediately before its date: "by 11:00 AM EDT on November 5, 2026".
 TIME_BEFORE_DATE = re.compile(rf"(?P<time>{TIME}|{TIME_MARKER})(?:{_GAP_TIME_TZ}(?P<tz>{TZ})\)?)?[ \t,]*"
                               rf"(?:on or before|no later than|not later than|by|on|of)?[ \t,]*$", re.I)
@@ -138,8 +148,8 @@ TZ_LIKE = re.compile(r"[ \t,(]*(?:(?:UTC|GMT)\s?[+\u2212-]\s?\d|(?:Africa|Americ
 # Amendments: "extended from <old> to <new>", "<old> is extended to <new>", "changed to <new>".
 CHANGE_VERB = r"\b(?:extend|chang|mov|postpon|revis|amend|reschedul|delay|advanc|push)\w*\b"
 FROM_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bfrom\s*$", re.I)
-TO_BEFORE = re.compile(rf"(?:{CHANGE_VERB}[^.;]{{0,60}}?)?\bto\s*$", re.I)
-CHANGE_TO_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bto\s*$", re.I)
+TO_BEFORE = re.compile(rf"(?:{CHANGE_VERB}[^.;]{{0,60}}?)?\bto(?:\s+read)?[\s:]*$", re.I)
+CHANGE_TO_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bto(?:\s+read)?[\s:]*$", re.I)
 SENTENCE_END = re.compile(r"[.!?]")
 ZERO_WIDTH = re.compile("[\u200b-\u200d\u2060\ufeff]")
 KIND_RES = [(k, re.compile(p, re.I)) for k, p in DEADLINE_KINDS]
@@ -431,6 +441,9 @@ def _when_only(line: str) -> bool:
     return WHEN_REST.fullmatch(TZ_RE.sub(" ", TIME_RE.sub(" ", DATE_RE.sub(" ", line)))) is not None
 
 
+CUT_BEFORE_BLANK = re.compile(r"(?:,|\b(?:a|an|the|and|or|nor|of|to|for|in|on|at|by|with|from|as|all|any|each|that|which|than|if|is|are|be))\s*$", re.I)
+
+
 def _statements(lines: list[str]):
     """Yields statements one at a time, so memory does not grow with the number of statements."""
     cur: _Statement | None = None
@@ -439,7 +452,10 @@ def _statements(lines: list[str]):
         line = _norm_ws(raw)
         if not line:
             if cur:
-                if not ends_sentence:  # a blank line inside a sentence (layout or PDF extraction): flag both sides
+                # A blank line inside a sentence (layout or PDF extraction): flag both sides. A heading without a full
+                # stop ("Technical Approach", "Volume I - Technical") is not a cut; an obligation, a trailing comma or
+                # a word that cannot end a sentence is.
+                if not ends_sentence and (SHALL_WORD.search(cur.text) or CUT_BEFORE_BLANK.search(cur.text)):
                     cur.open_end, opened = True, True
                 yield cur
             cur, ends_sentence = None, True
@@ -551,7 +567,7 @@ def _bind_after(s: str, end: int, limit: int):
         return iso.group(1), zone, iso.end()
     t = TIME_AFTER.match(s, end, limit)
     pos = t.end() if t else end
-    z = TZ_AFTER.match(s, pos, limit)
+    z = (TZ_AFTER if t else TZ_ONLY_AFTER).match(s, pos, limit)
     if z:
         return (t.group("time") if t else None), z.group("tz"), z.end()
     return (t.group("time") if t else None), None, pos
@@ -580,7 +596,7 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
     s = st.text
     stopped = len(s)                       # where extraction stopped if the deadline limit was reached
     # "Proposals: briefing 9:00 AM ET; due November 5" -> the leading label names what is due (kind only).
-    label = m.group(1) if (m := re.match(r"([^:;.]{1,60}):", s)) else ""
+    label = m.group(1) if (m := re.match(r"([^:;.]{1,60}):(?!\d)", s)) else ""  # not the colon of "5:00"
     for c0, c1 in _clauses(s):
         pairs = _with_next(DATE_RE.finditer(s, c0, c1))  # lazy, one date of lookahead: memory bounded by `limit`
         first = next(pairs, None)
@@ -605,16 +621,22 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
             # "November 5 (5:00 PM ET on November 6 ...)": that time is written for the next date, not this one.
             if time is not None and not last and re.fullmatch(r"[\s,]*(?:on|of)?[\s,]*", s[bind_end:nxt]):
                 time, tz, bind_end = None, None, dm.end()
+            lead = dm.start()  # where this date's written time begins, when the time is written before the date
             if time is None:
                 lo = max(prev_end, dm.start() - 80)
                 b = TIME_BEFORE_DATE.search(s, lo, dm.start())
                 if b:
                     time, tz = b.group("time"), b.group("tz") or tz
                     consumed.append((b.start(), dm.start()))
+                    lead = b.start()
             consumed.append((dm.start(), bind_end))
             region = s[prev_end:dm.start()]
-            superseded = bool(FROM_BEFORE.search(region))
-            replacement = k > 0 and ((prev_superseded and TO_BEFORE.search(region)) or CHANGE_TO_BEFORE.search(region))
+            # "from 5:00 PM ET on November 5, 2026 to 5:00 PM ET on November 12": the amendment words sit before the
+            # time. "is extended to November 12" marks a replacement even when it is the first date in the clause.
+            # These patterns end at `lead` and span at most about 90 characters, so only the last 200 are searched.
+            hp = max(prev_end, lead - 200)
+            superseded = bool(FROM_BEFORE.search(s, hp, lead))
+            replacement = bool((k > 0 and prev_superseded and TO_BEFORE.search(s, hp, lead)) or CHANGE_TO_BEFORE.search(s, hp, lead))
             after = s[bind_end:nxt]
             strong = STRONG_TRIGGER.search(region)
             event = any(_kind(region) == ek for ek in EVENT_KINDS)
@@ -622,6 +644,10 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
             # A later date in a triggered clause is a deadline only in a plain list ("by October 20, November 5 and ...").
             listed = (k > 0 and first_trigger is not None and first_trigger <= dm.start()
                       and (LIST_GAP.fullmatch(region) or ((_kind(region) or time is not None) and not RANGE_WORDS.search(region))))
+            # Admitted only because it carries its own time ("..., with debriefings on December 1 at 10:00 AM"): it is
+            # reported, but it does not inherit the clause's kind.
+            by_time = (listed and not replacement and not LIST_GAP.fullmatch(region) and not _kind(region)
+                       and not STRONG_TRIGGER.search(region) and not WEAK_TRIGGER.search(region))
             is_deadline = not skip and bool(
                 strong or WEAK_TRIGGER.search(region) or event or listed or replacement
                 or (last and (STRONG_TRIGGER.search(after) or _kind(after) in EVENT_KINDS) and not ISSUANCE.search(after)))
@@ -635,9 +661,9 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
             line_start = max(off for off, _ in st.starts if off <= dm.start())
             local = s[max(line_start, region_start):dm.start()]
             earlier = next((kn for kn, end in kind_ends if end <= dm.start()), None)
-            kind = ((prev_kind if replacement and prev_kind else None) or _kind(local, region) or earlier or _kind_first(after)
-                    or _kind(label) or (_kind(prev) if labelled_by_prev else None) or "other")
-            amb: list[str] = []
+            kind = ((prev_kind if replacement and prev_kind else None) or _kind(local, region) or (None if by_time else earlier)
+                    or _kind_first(after) or _kind(label) or (_kind(prev) if labelled_by_prev else None) or "other")
+            amb: list[str] = ["kind_uncertain"] if by_time else []
             # "Offerors registered in SAM.gov shall submit proposals by ...": the submission kind wins over a context
             # kind; if the context word is the one nearer the date, say the kind is uncertain.
             if kind in CONTEXT_KINDS and SUBMIT_VERB.search(region):
@@ -691,9 +717,13 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
                 continue  # a written marker, already bound to a date, or the digits of a UTC/GMT offset
             i = bisect.bisect_left(starts, t.start()) - 1
             if i >= 0 and bisect.bisect_left(ends, starts[i]) == bisect.bisect_left(ends, t.start()):  # same sentence
-                others = sum(a.startswith("other_time:") for a in out[i].ambiguities)
-                if others < MAX_OTHER_TIMES:  # a few are enough to send a reader to the source
-                    z = TZ_AFTER.match(s, t.end())
+                if sum(a.startswith("other_time:") for a in out[i].ambiguities) >= MAX_OTHER_TIMES:
+                    continue  # a few are enough to send a reader to the source
+                z = TZ_AFTER.match(s, t.end())
+                same = (out[i].time is not None and _time_key(t.group(0)) == _time_key(out[i].time)
+                        and (z is None or _zone_key(z.group("tz")) == _zone_key(out[i].timezone)))
+                duration = DURATION_HOURS.fullmatch(t.group(0)) or DURATION_BEFORE.search(s, max(0, t.start() - 8), t.start())
+                if not same and not duration:
                     written = _norm_ws(t.group(0) + (" " + z.group("tz") if z else ""))
                     out[i].ambiguities.append(f"other_time:{written}")
     return out
@@ -731,14 +761,20 @@ def _requirements_in(st: _Statement) -> list[dict]:
     return out
 
 
+DURATION_HOURS = re.compile(r"\d{3}\s*(?:hours|hrs)", re.I)  # "within 120 hours" is a duration, not a clock time
+DURATION_BEFORE = re.compile(r"\b(?:within|for)\s+$", re.I)
+
+
+@functools.lru_cache(maxsize=4096)
 def _time_key(t: str | None):
-    """Seconds after midnight, so 17:00:01 and 5:00:01 PM compare equal and 17:00:01 and 17:00:59 do not."""
+    """Seconds after midnight as a string (one type for every form), so 17:00:01 and 5:00:01 PM compare equal,
+    1700 hours, 5:00 PM and 17:00 compare equal, and 17:00:01 and 17:00:59 do not."""
     t = (t or "").lower().replace(".", "").strip()
     if re.fullmatch(r"(?:12(?::00)?\s+)?noon", t):
-        return 12 * 3600
+        return str(12 * 3600)
     if (m := re.fullmatch(r"(\d{3,4})\s*(?:hours|hrs)", t)):
         h, mi = divmod(int(m.group(1)), 100)
-        return h * 3600 + mi * 60
+        return str(h * 3600 + mi * 60)
     if (m := re.fullmatch(r"(\d{1,2})(?::(\d{2}))?(?::(\d{2}(?:\.\d+)?))?\s*([ap])?m?", t)):
         h, mi, se, ap = int(m.group(1)), int(m.group(2) or 0), m.group(3) or "0", m.group(4)
         hour = (h % 12) + (12 if ap == "p" else 0) if ap else h
@@ -746,14 +782,20 @@ def _time_key(t: str | None):
     return t
 
 
+@functools.lru_cache(maxsize=1024)
+def _zone_key(tz: str | None) -> str:
+    """"ET" and "Eastern Time" compare equal; EST and EDT stay different."""
+    zone = re.sub(r"\s+", " ", (tz or "").lower())
+    if (m := re.fullmatch(r"(eastern|central|mountain|pacific|alaska|hawaii)(?: prevailing)? time", zone)):
+        zone = ZONE_NAMES[m.group(1)]
+    return zone
+
+
 def _norm_key(d: Deadline) -> tuple:
     """Equal for the same moment written differently: "11/05/2026" and "November 5, 2026", "5 PM" and "17:00",
     "ET" and "Eastern Time". EST and EDT stay different."""
     parts = _date_parts(d.date)
-    zone = re.sub(r"\s+", " ", (d.timezone or "").lower())
-    if (m := re.fullmatch(r"(eastern|central|mountain|pacific|alaska|hawaii)(?: prevailing)? time", zone)):
-        zone = ZONE_NAMES[m.group(1)]
-    return (parts if isinstance(parts, tuple) else d.date.lower(), _time_key(d.time), zone)
+    return (parts if isinstance(parts, tuple) else d.date.lower(), _time_key(d.time), _zone_key(d.timezone))
 
 
 def analyze(text: str) -> Report:
@@ -855,9 +897,14 @@ def analyze(text: str) -> Report:
         if q["truncated"]:
             r.warnings.append(f"Requirement on line {q['line']} is long or continues past a parsing bound; the checklist shows an excerpt. Read lines {q['line']}-{q['end_line']}.")
     r.warnings += capped
+    malformed = 0
     for i, raw in enumerate(lines, 1):
         for m in MALFORMED_DATE_RE.finditer(raw):
-            r.warnings.append(f"Line {i} has a date-like value in a form this tool does not read (\"{_norm_ws(m.group(0))[:40]}\"); check it in the source.")
+            malformed += 1
+            if malformed <= MAX_MALFORMED_WARNINGS:
+                r.warnings.append(f"Line {i} has a date-like value in a form this tool does not read (\"{_norm_ws(m.group(0))[:40]}\"); check it in the source.")
+    if malformed > MAX_MALFORMED_WARNINGS:
+        r.warnings.append(f"{malformed - MAX_MALFORMED_WARNINGS} more date-like values in unsupported forms are not listed.")
     if "\ufffd" in text:
         r.warnings.append("Input contains U+FFFD replacement characters (undecodable bytes or a lossy conversion); some text may be missing.")
     if not r.page_limits:

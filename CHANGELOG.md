@@ -46,3 +46,14 @@ later is required, and the PDF extra needs pypdf 6.21.0 or later.
   (RBD-4); dates and zones must be whole tokens, so `111/05/2026`, `20260`, `UTC+05:300` and four-part IANA names
   are flagged instead of shortened into valid-looking values (RBD-5). A later date in a triggered clause that has
   its own time is reported (for example a hand-carried-copy cutoff in parentheses).
+- r2 review fixes (kofi, 2026-10-17): an amendment with the time written before each date ("from 5:00 PM ET on
+  November 5, 2026 to 5:00 PM ET on November 12, 2026") reports both dates, and a date with no time of its own no
+  longer borrows the next date's zone (KR2-01); "is extended to <date>" and "is changed to read: <date>" mark a
+  replacement even when no earlier date is in the sentence (KR2-07); `noon`, `1700 hours` and `5:00 PM` again compare
+  equal to the clock forms (KR2-02, a regression in the first r2 commit); a heading followed by a blank line no longer
+  makes the next requirement an excerpt: a blank line is a cut only after an obligation, a comma or a word that
+  cannot end a sentence (KR2-03); a restated equal time and an "NNN hours" duration are not other times (KR2-04); a
+  dated event admitted only by its own time is reported as `other` with `kind_uncertain` instead of inheriting the
+  deadline's kind, and a leading label is no longer read through the colon of "5:00" (KR2-05); date boundaries look
+  only at digits, so a date glued to a word is read again, and "5th November 2026" is read (KR2-06, KR2-09);
+  date-like warnings are capped at 50 plus a count (KR2-08). The README lists known strict false positives.
