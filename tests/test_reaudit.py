@@ -271,3 +271,10 @@ def test_r240_1_any_deadline_kind_word_marks_an_extension_as_a_replacement(tmp_p
     text = BASE + COMPLETE + f"{subject} is extended to October 8, 2026 at 5:00 PM ET."
     assert any(d.date == "October 8, 2026" and "replaces_earlier_date" in d.ambiguities for d in analyze(text).deadlines), subject
     assert strict(tmp_path, text) == 2
+
+
+@pytest.mark.parametrize("subject", ["the response period", "the question period", "the solicitation"])
+def test_r573_1_an_amendment_that_extends_a_period_is_not_skipped_as_issuance(tmp_path, subject):
+    text = BASE + COMPLETE + f"The purpose of this amendment is to extend {subject} to November 12, 2026 at 5:00 PM ET."
+    assert any(d.date == "November 12, 2026" and "replaces_earlier_date" in d.ambiguities for d in analyze(text).deadlines), subject
+    assert strict(tmp_path, text) == 2

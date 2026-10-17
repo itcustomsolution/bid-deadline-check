@@ -648,7 +648,7 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
             after = s[bind_end:nxt]
             strong = STRONG_TRIGGER.search(region)
             event = any(_kind(region) == ek for ek in EVENT_KINDS)
-            skip = ISSUANCE.search(region) and not strong
+            skip = ISSUANCE.search(region) and not strong and not replacement  # "this amendment extends ... to <date>"
             # A later date in a triggered clause is a deadline only in a plain list ("by October 20, November 5 and ...").
             listed = (k > 0 and first_trigger is not None and first_trigger <= dm.start()
                       and (LIST_GAP.fullmatch(region) or ((_kind(region) or time is not None) and not RANGE_WORDS.search(region))))
