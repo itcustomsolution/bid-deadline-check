@@ -263,3 +263,11 @@ def test_r2c_r1_extending_the_response_period_is_still_a_replacement(tmp_path):
     text = BASE + COMPLETE + "The Government reserves the right to extend the response period to November 12, 2026."
     assert any(d.date == "November 12, 2026" and "replaces_earlier_date" in d.ambiguities for d in analyze(text).deadlines)
     assert strict(tmp_path, text) == 2
+
+
+@pytest.mark.parametrize("subject", ["The question period", "The deadline for inquiries", "The bid opening", "The application window",
+                                     "SAM registration", "The intent to bid notice", "The site visit", "The RFQ", "The Q&A period"])
+def test_r240_1_any_deadline_kind_word_marks_an_extension_as_a_replacement(tmp_path, subject):
+    text = BASE + COMPLETE + f"{subject} is extended to October 8, 2026 at 5:00 PM ET."
+    assert any(d.date == "October 8, 2026" and "replaces_earlier_date" in d.ambiguities for d in analyze(text).deadlines), subject
+    assert strict(tmp_path, text) == 2

@@ -151,10 +151,11 @@ FROM_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bfrom\s*$", re.I)
 TO_BEFORE = re.compile(rf"(?:{CHANGE_VERB}[^.;]{{0,60}}?)?\bto(?:\s+read(?:\s+as\s+follows)?)?[\s:]*$", re.I)
 CHANGE_TO_BEFORE = re.compile(rf"{CHANGE_VERB}[^.;]{{0,60}}?\bto(?:\s+read(?:\s+as\s+follows)?)?[\s:]*$", re.I)
 # "is extended to <date>" with no earlier date in the clause is an amendment of a deadline only when the sentence says
-# what changed ("This date", "receipt of Offers", "the response period", "changed to read"), not "the period of
-# performance may be extended". Fail-closed: a validity change that names offers still warns.
+# what changed ("This date", "receipt of Offers", "the response period", "the question period", any deadline kind
+# word, "changed to read"), not "the period of performance may be extended". Fail-closed: a validity change that names
+# offers still warns.
 CHANGE_HINT = re.compile(r"\b(?:dates?|hours?|times?|receipt|due|deadline|closing|responses?|proposals?|offers?|quotes?|quotations?"
-                         r"|submissions?)\b|\bto\s+read\b", re.I)
+                         r"|submissions?|solicitations?|RFP|RFQ|IFB)\b|\bQ\s*&\s*A\b|\bto\s+read\b", re.I)
 SENTENCE_END = re.compile(r"[.!?]")
 ZERO_WIDTH = re.compile("[\u200b-\u200d\u2060\ufeff]")
 KIND_RES = [(k, re.compile(p, re.I)) for k, p in DEADLINE_KINDS]
@@ -642,7 +643,8 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES) ->
             hp = max(prev_end, lead - 200)
             superseded = bool(FROM_BEFORE.search(s, hp, lead))
             replacement = bool((k > 0 and prev_superseded and TO_BEFORE.search(s, hp, lead))
-                               or (CHANGE_TO_BEFORE.search(s, hp, lead) and (k > 0 or CHANGE_HINT.search(s, hp, lead))))
+                               or (CHANGE_TO_BEFORE.search(s, hp, lead)
+                                   and (k > 0 or CHANGE_HINT.search(s, hp, lead) or _kind(s[hp:lead]))))
             after = s[bind_end:nxt]
             strong = STRONG_TRIGGER.search(region)
             event = any(_kind(region) == ek for ek in EVENT_KINDS)

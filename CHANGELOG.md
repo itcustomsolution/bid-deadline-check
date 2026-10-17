@@ -58,7 +58,7 @@ later is required, and the PDF extra needs pypdf 6.21.0 or later.
   only at digits, so a date glued to a word is read again, and "5th November 2026" is read (KR2-06, KR2-09);
   date-like warnings are capped at 50 plus a count (KR2-08). The README lists known strict false positives.
 - Final verification residuals (kofi, 2026-10-17): "extended to <date>" with no earlier date is a replacement only
-  when the sentence names a date, time, receipt, deadline or submission ("the period of performance may be extended
-  to ..." no longer warns); "changed to read as follows:" is recognized; a clock time after "for" or "within" is an
+  when the sentence names a date, time, receipt, deadline, submission, solicitation, Q&A or any deadline kind word
+  ("the question period is extended to ..." warns; "the period of performance may be extended to ..." does not); "changed to read as follows:" is recognized; a clock time after "for" or "within" is an
   other time again (only a three-digit hours form is treated as a duration); a time-less date keeps a zone written
   after "prevailing" or "local".
