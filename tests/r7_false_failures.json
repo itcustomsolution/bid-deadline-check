@@ -60,7 +60,7 @@
    "not_recognized": [
     [
      4,
-     "No"
+     "not a supported sentence form: No alteration to the closing time is authorized."
     ]
    ]
   },
@@ -69,7 +69,7 @@
    "not_recognized": [
     [
      4,
-     "may"
+     "not a supported sentence form: Offerors may adjust their technical approach before the proposal due date."
     ]
    ]
   },
@@ -78,7 +78,7 @@
    "not_recognized": [
     [
      4,
-     "adjustments"
+     "not a supported sentence form: Pricing adjustments are due with the proposal."
     ]
    ]
   },
@@ -159,7 +159,7 @@
    "not_recognized": [
     [
      4,
-     "encouraged"
+     "not a supported sentence form: Offerors are encouraged to bring forward any questions well before the question "
     ]
    ]
   },
@@ -168,7 +168,7 @@
    "not_recognized": [
     [
      4,
-     "names more than one kind of deadline: orals, proposal_due"
+     "not a supported sentence form: Oral presentations are limited to 15 slides and will be scheduled after the clos"
     ]
    ]
   },
@@ -177,7 +177,7 @@
    "not_recognized": [
     [
      4,
-     "slides"
+     "not a supported sentence form: Presentation slides must be submitted with the proposal by the proposal due date"
     ]
    ]
   },
@@ -190,7 +190,7 @@
     ],
     [
      4,
-     "slides"
+     "not a supported sentence form: Presentation slides two through five must show the schedule;"
     ]
    ]
   },
@@ -199,7 +199,7 @@
    "not_recognized": [
     [
      4,
-     "Registration"
+     "not a supported sentence form: Registration fees follow a sliding scale and are due by the registration deadlin"
     ]
    ]
   },
@@ -208,7 +208,7 @@
    "not_recognized": [
     [
      4,
-     "Sliding"
+     "not a supported sentence form: Sliding doors at the loading dock are locked after the closing time."
     ]
    ]
   },
@@ -217,7 +217,7 @@
    "not_recognized": [
     [
      4,
-     "slides"
+     "not a supported sentence form: Submit presentation slides by the proposal due date."
     ]
    ]
   },
@@ -235,7 +235,7 @@
    "not_recognized": [
     [
      4,
-     "one"
+     "not a supported sentence form: Submit one original and three copies of each proposal."
     ]
    ]
   },
@@ -262,7 +262,7 @@
    "not_recognized": [
     [
      4,
-     "acknowledge"
+     "not a supported sentence form: Offerors shall acknowledge receipt of all amendments to the solicitation."
     ]
    ]
   },
@@ -343,7 +343,7 @@
    "not_recognized": [
     [
      4,
-     "4"
+     "not a supported sentence form: Provide part number 47QTCA22D00MAR 2026 kits."
     ]
    ]
   },
@@ -379,7 +379,7 @@
    "not_recognized": [
     [
      4,
-     "9"
+     "not a supported sentence form: Paragraph L.3.2.2019 applies."
     ]
    ]
   },
@@ -424,7 +424,7 @@
    "not_recognized": [
     [
      4,
-     "2"
+     "not a supported sentence form: Tableau v2023.3.1 is required."
     ]
    ]
   },
@@ -442,7 +442,7 @@
    "not_recognized": [
     [
      4,
-     "follow"
+     "not a supported sentence form: Proposals must follow Section 3.4.1 and FAR 52.212-1."
     ]
    ]
   },
@@ -451,7 +451,7 @@
    "not_recognized": [
     [
      4,
-     "2"
+     "not a supported sentence form: Refer to part number 2026-1145-AB and drawing 12.11.B."
     ]
    ]
   },
@@ -460,7 +460,7 @@
    "not_recognized": [
     [
      4,
-     "1"
+     "not a supported sentence form: See paragraphs 1.2.3 through 1.2.10 of the statement of work."
     ]
    ]
   },
@@ -469,7 +469,7 @@
    "not_recognized": [
     [
      4,
-     "4"
+     "not a supported sentence form: The contract number is 47QTCA-26-D-0001."
     ]
    ]
   },
@@ -478,7 +478,7 @@
    "not_recognized": [
     [
      3,
-     "5"
+     "not a supported sentence form: 5 copies are required."
     ]
    ]
   },
@@ -487,7 +487,7 @@
    "not_recognized": [
     [
      4,
-     "extended"
+     "not a supported sentence form: Bid Item 3 (extended warranty) is cancelled from the schedule."
     ]
    ]
   },
@@ -505,11 +505,11 @@
    "not_recognized": [
     [
      4,
-     "Some"
+     "begins in lower case or with a joining or condition word"
     ],
     [
      4,
-     "begins in lower case or with a joining or condition word"
+     "not a supported sentence form: Some vendors asked whether the RFP was withdrawn;"
     ]
    ]
   },
@@ -518,7 +518,7 @@
    "not_recognized": [
     [
      4,
-     "State"
+     "not a supported sentence form: The State reserves the right to cancel this solicitation at any time."
     ]
    ]
   },
@@ -527,7 +527,7 @@
    "not_recognized": [
     [
      4,
-     "visit"
+     "not a supported sentence form: The site visit is cancelled."
     ]
    ]
   },
@@ -558,7 +558,7 @@
    "not_recognized": [
     [
      4,
-     "There"
+     "not a supported sentence form: There is no change to the closing date."
     ]
    ]
   },
@@ -576,7 +576,7 @@
    "not_recognized": [
     [
      4,
-     "names more than one kind of deadline: orals, proposal_due"
+     "not a supported sentence form: Oral presentations are limited to 15 slides and will be scheduled after the clos"
     ]
    ]
   },
@@ -585,7 +585,7 @@
    "not_recognized": [
     [
      4,
-     "slides"
+     "not a supported sentence form: Presentation slides must be submitted with the proposal by the proposal due date"
     ]
    ]
   },
@@ -612,7 +612,7 @@
    "not_recognized": [
     [
      4,
-     "Jane"
+     "not a supported sentence form: Point of Contact: Jane Doe, Contracting Officer"
     ]
    ]
   },
@@ -621,7 +621,7 @@
    "not_recognized": [
     [
      6,
-     "three"
+     "not a supported sentence form: The offeror shall submit its proposal in three volumes."
     ]
    ]
   },
@@ -630,11 +630,33 @@
    "not_recognized": [
     [
      6,
-     "cut by a statement bound or an interrupting list or heading line"
+     "not a supported sentence form: 1."
     ],
     [
      7,
      "cut by a statement bound or an interrupting list or heading line"
+    ],
+    [
+     9,
+     "not a supported sentence form: The contractor shall provide all labor."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_reaudit.py::test_kr2_03_a_heading_and_a_blank_line_do_not_cut_the_next_requirement[Technical Approach\\n\\nThe offeror shall describe its approach.]",
+   "not_recognized": [
+    [
+     6,
+     "not a supported sentence form: The offeror shall describe its approach."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_reaudit.py::test_kr2_03_a_heading_and_a_blank_line_do_not_cut_the_next_requirement[Volume I - Technical\\n\\nThe offeror shall describe its approach.]",
+   "not_recognized": [
+    [
+     6,
+     "not a supported sentence form: The offeror shall describe its approach."
     ]
    ]
   },
@@ -679,7 +701,7 @@
    "not_recognized": [
     [
      1,
-     "4"
+     "not a supported sentence form: SOLICITATION 47QSMA-26-R-0001"
     ]
    ]
   }

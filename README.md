@@ -82,30 +82,52 @@ A sentence is recognized only if one of these holds:
   due date: <when>", "Closing date: <when>", "Proposals are (must be, shall be, will be) due (submitted, received,
   delivered) [electronically | via email] [to <address>] [no later than | not later than | NLT | on or before | by |
   on] <when>.", "Offerors must (shall) submit proposals ... <when>.", a table row "| Proposals due | <date> | <time
-  zone> |", a capitals label above a date line, "Due Date: <date> Due Time: <time zone>" and "This RFQ (RFP, IFB,
-  solicitation) closes <when>." Here <when> is the date with its time and zone in the usual orders (", at, @, |, -, /"
+  zone> |", a capitals label above a date line, and "This RFQ (RFP, IFB, solicitation) closes <when>." A bare "Due
+  date:" label is not one of them: it says nothing about which deadline it is. Here <when> is the date with its time and zone in the usual orders (", at, @, |, -, /"
   between them; "hrs", "hours", "sharp" or "prevailing" before the zone; the zone repeated in parentheses; an ISO 8601
   date-time). Nothing else may remain in the sentence: no second date or time, no other zone, no "or", no lot;
 - it is a zone statement "All times (in this solicitation) are <zone>." (r6 compares it with every deadline's zone);
-- it has no date, time, zone or date-like value; it does not begin in lower case or with a joining or condition word
-  ("or", "and", "but", "if", "unless", ...); it names at most one kind of deadline; and once references (Section,
-  Volume, Attachment, Block, FAR and DFARS clause numbers, form numbers other than SF-30), page limits, font, margin and
-  paper values, list markers, addresses (email, web, phone; not one with a time or status word, a date-like value or
-  four digits in a row) and a closing "by the proposal due date" or "by the deadline" (only in a sentence about
-  proposals) are set aside, no digit is left and every word is in the tool's vocabulary (`core.ALLOWED_WORDS`, plain
-  instruction words such as offeror, submit, proposal, volume, portal, technical). "may" counts only before "be" or one
-  of a few verbs.
+- it has no date, time, zone or date-like value, does not begin in lower case or with a joining or condition word
+  ("or", "and", "but", "if", "unless", ...), and, with a leading list marker set aside, matches one of these templates
+  whole (case aside; `core.PLAIN_FORMS` and `core.LIST_FORMS`):
+  - page limits: "<subject> shall (must) not exceed <n> pages.", "<subject> is (are) limited to <n> pages.",
+    "<subject> page limit: <n> pages", where the subject is a proposal, volume, response, narrative or approach
+    (optionally technical, price, cost, management, past performance or staffing) or "Volume I" to "Volume X" with an
+    optional title, and <n> is a number up to 999 or a number word up to fifty with an optional "(digits)";
+  - submission: "<proposals> shall (must) be submitted electronically (by email, via email) [to <address> | to the
+    contracting officer [at <address>]].", "... be submitted in PDF format (as a single PDF file) [by email].", "... be
+    submitted through <address>.", "Submit <proposals> [by email] to <address>.", "The technical (price, cost,
+    management, past performance) proposal (volume) shall be submitted in (as) Volume <n>.", "All proposals shall
+    (must) be received by the [proposal] deadline (due date, closing date).";
+  - questions: "Questions shall (must) be submitted by email (via email, in writing) [to <address> | to the
+    contracting officer [at <address>]].", "Questions shall (must) be directed to the contracting officer [at
+    <address>].", "The offeror shall direct all questions to the point of contact.";
+  - format: "Pages shall be 8.5 x 11 inches [with 1-inch margins].", "Text shall use [12-point] Times New Roman (Arial,
+    Calibri) font[, single-spaced].", and "The offeror shall include its UEI and CAGE code on the cover page.";
+  - list lines and headings: "The proposal shall consist of the following volumes:", "Volume I - Technical" and
+    similar, "Section A" to "Section M" (optionally "- Instructions to Offerors" or "- Evaluation Factors [for
+    Award]"), "Instructions to Offerors", "Evaluation Factors", "Table of Contents", "Introduction", "Scope",
+    "Submission Instructions", "Proposal Format", "Technical Approach", "Past Performance", "Price".
 
-The vocabulary was chosen to leave out every word that can say when, change, cancel, negate or set a condition, every
-number word, and the names of the solicitation itself (solicitation, RFP, RFQ, RFI, IFB, contract); a test checks it
-against those word lists. The first code review showed that ordinary words could still carry a change ("Proposals
-shall be submitted with the questions.", "The RFP will be posted on SAM.", "The contract is signed."); those words were
-removed and the one-kind rule was added. That a sentence made only of the remaining words cannot change a deadline is
-a design argument tested against adversarial inputs, not a proof. Any other non-ASCII character than typographic
-quotes and dashes, bullets, the section sign and check marks (another script, a full-width or look-alike letter, an
-invisible format character), a 12-hour clock time without AM or PM in a deadline ("5:00 ET"), and a sentence at the
-edge of a statement cut by a size bound or by an interrupting list or heading line also make a sentence unrecognized.
-"can't" and similar are single words and are not in the vocabulary.
+  Here <proposals> is proposals, offers, quotes, quotations, bids or responses (with an optional "all" or "the"), and
+  <address> an email address or a bare host name (an optional "https://" or "www.", a name ending in .gov, .mil,
+  .com, .org, .net or .us, and an optional "/"), with no digit, no path or query, and none of these stems anywhere
+  inside it: time words (due, date, late, early, after, before, until, next, last, week, day, month, year, hour, time,
+  now, ...), status and change words (cancel, void, extend, amend, amdt, postpon, clos, open, new, revis, chang, hold,
+  pause, tbd, not, no, only, except, if, ...), event words (oral, present, visit, conferen, meet, award, notice, brief,
+  ...) and month abbreviations (`core.ADDRESS_STEMS` has the full list). A volume or section and its title may be
+  separated by "-", ":", an en dash or an em dash.
+
+There is no open vocabulary: the two code reviews of an earlier vocabulary-based version showed that ordinary words
+could still move or qualify a submission ("Proposals shall be submitted with the questions.", "Proposals shall be
+submitted at the presentation."), so the owner chose this closed list. A template with any word changed or added needs
+review. Also unrecognized: any non-ASCII character other than U+2018, U+2019, U+201C, U+201D (typographic quotes),
+U+2013, U+2014 (en and em dash), U+2022, U+25CF, U+25AA (bullets), U+2026 (ellipsis), U+00A7 (section sign), U+2713,
+U+2714 and U+2612 (check marks), which covers other scripts, full-width and look-alike letters and invisible format
+characters; an ASCII control character other than tab; a line separator other than a newline or carriage return
+(`\x0b`, `\x0c`, `\x1c` to `\x1e`, U+0085, U+2028, U+2029: the line it ends is reviewed); a 12-hour clock time without AM or PM in a deadline ("5:00 ET"); and a sentence
+at the edge of a statement cut by a size bound or by an interrupting list or heading line, unless it is one of the list
+lines and headings above. After an unaltered standard clause that ends "; or", that "or" alone is recognized.
 
 The checks that still give their own reasons:
 
@@ -210,8 +232,8 @@ name a proposal submission, so a separate hard-copy deadline conflicts with the 
 Known false failures (NEEDS REVIEW although nothing is wrong). Since 0.2.0rc7, every sentence outside the supported
 forms, which is most ordinary prose: numbers written as words ("three volumes"), names ("Point of Contact: Jane Doe"),
 counts ("5 copies"), "As amended, proposals are due ...", "As previously announced, ...", periods of performance,
-award dates, office hours, version numbers, a label on one line with its date on the next sentence, and any word not
-in the vocabulary. 74 earlier test texts that read cleanly before now need review; each is listed, with the exact
+award dates, office hours, version numbers, a label on one line with its date on the next sentence, and any plain
+sentence that is not one of the templates. 76 earlier test texts that read cleanly before now need review; each is listed, with the exact
 item it now produces, in `tests/r7_false_failures.json`. Also, from earlier releases: the same time restated in another zone or notation
 ("5:00 PM ET (2:00 PM PT)", "17:00 UTC-4 (ET)"); office hours in a deadline's sentence; numbers written like a
 screened date form (`Version 1.2.2026`, "In May, 12 2026 vehicles were inspected", `2026-111-05`, `JUN-12-1234`, and
@@ -229,9 +251,9 @@ Known misses (READ although a careful reader would not act). The 41 wordings tha
 ("The date above is no longer valid.", "Amendment 0002 grants a two-week extension.", "This RFP is no longer active.",
 "Time Zone: Central", ...) are now caught and are ordinary tests. What the allow-list cannot see: a deadline date that
 has already passed (the tool does not know today's date); an amendment that is not in the input; a supported-form
-deadline that is itself wrong; and a change written entirely in recognized forms and vocabulary. The first code review
-found such changes and they were closed (they are now tests); none is known after that, which is a statement about the
-probes run, not a proof. The measured rates on the development cases and on the
+deadline that is itself wrong; and a change written entirely in the recognized forms above. The forms were reviewed
+one by one and attacked in code review; every input found is now a test, and further ones may exist. The measured
+rates on the development cases and on the
 independent held-out sets are in the release package, not here, because they describe one evaluation, not a
 guarantee.
 

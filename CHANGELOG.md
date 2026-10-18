@@ -9,8 +9,7 @@ solicitation.
 - A sentence holding a date, time or zone is recognized only if it holds one complete deadline in a fixed form whose
   label names that deadline's kind; any other sentence only if, with references, page limits, format values, list
   markers and addresses set aside, no digit is left, it names at most one kind of deadline, it does not begin in lower
-  case or with a joining or condition word, and every word is in a closed vocabulary chosen to leave out words that say
-  when, change, cancel, negate or set a condition (checked against those word lists; a design argument, not a proof).
+  case or with a joining or condition word, and every word is in a closed vocabulary (replaced by templates below).
   Non-ASCII letters, look-alikes and invisible characters, a 12-hour time without AM or PM in a deadline, and sentences
   cut at a statement edge are not recognized. Standard FAR receipt clauses, the checked SF-30 "is not extended" line, a
   few fixed rule sentences, a matching late-receipt rule and an "All times are <zone>" statement are recognized whole.
@@ -18,10 +17,16 @@ solicitation.
   ordinary tests, each required to produce a review item on its own lines.
 - r6's specific reasons are listed before allow-list items, overflow counts are reported separately, and a deadline
   carries one `not_recognized:N` code after its other reasons.
-- 74 earlier test texts that read cleanly now need review; they are strict expected failures listed with their exact
+- Earlier test texts that read cleanly and now need review (76, see below); they are strict expected failures listed with their exact
   items in `tests/r7_false_failures.json`. `tests/conftest.py` fails one if its items change or if it also fails with
   the allow-list switched off. Their text and assertions are unchanged.
 - The first code review (BLOCK) found inputs that read READ although they change the deadline; each is now a test.
+- After the second code review (BLOCK) and the Two-Round Stop, the owner chose closed templates: a plain sentence is
+  recognized only if it matches one of a short list of whole-sentence templates (page limits, submission method,
+  questions, format, identification, volume list, headings). The open vocabulary is removed. Addresses are an email
+  address or a bare host name with no digit, path or listed stem; a bare "Due date:" label is not a proposal deadline;
+  ASCII control characters and line separators other than newline and carriage return are reviewed; only "or" may
+  follow a standard clause. The second review's inputs are tests; 76 earlier test texts are listed false failures.
 
 ## 0.2.0rc6 (unreleased candidate, 2026-10-17; not published; 0.2.0rc5 and earlier were audited and are frozen)
 
