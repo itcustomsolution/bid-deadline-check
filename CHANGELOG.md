@@ -41,11 +41,16 @@ starts with an `OUTCOME:` line.
   lateness or method qualifier (and no longer held when an adjective such as "Late" or "Faxed" names only some
   proposals), zone redefinitions with "mean" and commas, zone statements that give an example time, "now have until
   <date>", "call" no longer an event, the exact FAR emergency clause and the wrapped default-time clause read cleanly.
-  32 further reviewer wordings still read cleanly; after two corrective rounds they are recorded as known misses
+  32 further reviewer wordings still read cleanly (40 after the review of the final delta); after two corrective rounds they are recorded as known misses
   (strict expected failures in tests/test_r6_review_round2.py), not waived.
 - The negated-change exemption added in the second change is removed: with the real change in the next sentence
   ("The proposal due date will not be extended. Offerors have an additional week.") it made a case read cleanly that
   rc5 and the first r6 commit caught. Negated changes need review again (false failures, on purpose).
+- Review of the final delta: three narrowings in the round-2 fixes are undone because they lost cases 21e9ca1 caught
+  ("processes resume" without a date after a FAR emergency clause; "Electronic and paper proposals will no longer be
+  accepted"; "local time" dropped from every zone statement). An unaltered standard clause is not read as a zone
+  statement. Eight further wordings that read cleanly ("will not be accepted by any means", "is no longer 5:00 PM ET on
+  <date>") are recorded as known misses, now 40.
 - Evaluation: the development cases used while writing this change are frozen with labels, reasons and sources,
   and an independently prepared held-out set was sealed before any run, then a second one before the final run; results
   are in the release package. The

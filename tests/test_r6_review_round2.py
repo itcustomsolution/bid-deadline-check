@@ -33,6 +33,12 @@ def held(text):
     return rc == 2 and bool(props) and all(d["status"] == "needs_review" for d in props)
 
 
+FAR_EMERGENCY = ("If an emergency or unanticipated event interrupts normal Government processes so that offers cannot be received "
+                 "at the Government office designated for receipt of offers by the exact time specified in the solicitation, and "
+                 "urgent Government requirements preclude amendment of the solicitation or other notice of an extension of the "
+                 "closing date, the time specified for receipt of offers will be deemed to be extended to the same time of day "
+                 "specified in the solicitation on the first work day on which normal Government processes resume.")
+
 FIXED = [
     OLD + "The proposal due date is not extended, and offerors are given three additional days.",
     OLD + "The closing date is not changed. Offerors are granted an additional 48 hours to submit proposals.",
@@ -49,8 +55,17 @@ FIXED = [
     OLD + "All times listed are Central Time (for example, 10:00 AM CT).",
     OLD + "Offerors now have until November 12, 2026 at 5:00 PM ET.",
     "Proposals in response to this call are due at 3:00 PM ET, November 5, 2026 (5:00 PM ET portal).",
-    # caught by e62299f and lost to f16da2e's negation exemption, which the final commit removes
+    # caught by e62299f and lost to f16da2e's negation exemption, which 31fb7b5 removes
     OLD + "The proposal due date will not be extended. Offerors have an additional week.",
+    # caught by 21e9ca1 and lost to narrowings in 1ecec0c, which the next commit undoes (review of the final delta)
+    OLD + FAR_EMERGENCY + " Normal Government processes resume on Monday.",
+    OLD + FAR_EMERGENCY + " Normal Government processes will resume on Monday, November 9, 2026.",
+    OLD + FAR_EMERGENCY + " Government processes resumed today.",
+    OLD + "Electronic and paper proposals will no longer be accepted.",
+    OLD + "Hard-copy and electronic proposals will not be accepted.",
+    OLD + "Paper proposals will no longer be accepted.",
+    OLD + "Electronic proposals will no longer be accepted.",
+    OLD + "All times in this solicitation are local time at the delivery site in Phoenix, Arizona.",
 ]
 
 
@@ -122,10 +137,19 @@ KNOWN_MISSES = [  # unresolved: each reads cleanly although a careful reader wou
     OLD + "Time Zone: Central",
     OLD + "Unless otherwise noted, Central Time applies.",
     OLD + "Central Time governs all deadlines.",
+    # found by the review of the final delta (not regressions; recorded, not fixed, after two corrective rounds)
+    OLD + "Proposals will not be accepted by any means.",
+    OLD + "Proposals will no longer be accepted by the Government.",
+    OLD + "No proposals will be accepted by this office.",
+    OLD + "Proposals will not be accepted before further notice.",
+    OLD + "Proposals will not be accepted through the end of the fiscal year.",
+    OLD + "No offers will be received via any method.",
+    OLD + "The proposal due date is no longer 5:00 PM ET on November 5, 2026.",
+    OLD + "The Government does not intend to award a contract under this notice.",
 ]
 
 
 @pytest.mark.parametrize("text", KNOWN_MISSES)
-@pytest.mark.xfail(strict=True, reason="known miss after two corrective review rounds; recorded, not waived (README known misses)")
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason="known miss after two corrective review rounds; recorded, not waived (README known misses)")
 def test_r6r2_known_misses_are_still_missed(text):
     assert held(text)

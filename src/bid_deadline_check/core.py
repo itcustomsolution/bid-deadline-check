@@ -265,8 +265,8 @@ TBD_DL = re.compile(rf"\b(?:{_DL_PHRASE}|due)\b[\s:,\-|(]*(?:is\s+|are\s+|remain
 _LATE_QUALIFIER = (r"\s+(?:after|later\s+than|past|beyond|before|unless|if|via|through|by|"
                    r"(?:in|on|as)\s+(?:paper|hard\s+copy|hardcopy|person)|electronically|orally|verbally)\b")
 # Before the noun: an adjective that names only some proposals ("Late proposals will not be accepted").
-NEG_QUALIFIED = re.compile(r"\b(?:late|oral|verbal|faxed|facsimile|e-?mailed|telephonic|telephone|unsigned|incomplete|partial|alternate"
-                           r"|unsolicited|multiple|duplicate|electronic|paper|hand-?delivered|hard-?copy|conditional|qualified)\s+$", re.I)
+NEG_QUALIFIED = re.compile(r"(?<!\band\s)(?<!\bor\s)\b(?:late|oral|verbal|faxed|facsimile|telephonic|telephone|unsigned|incomplete|partial"
+                           r"|alternate|unsolicited|duplicate|conditional)\s+$", re.I)
 NEG_DL = re.compile(r"\b(?:proposals?|offers?|bids?|quotes?|quotations?|responses?|submissions?)\s+(?:are|is)\s+(?:not|no\s+longer)\s+due\b"
                     rf"|\bnot\s+due\s+on\s+the\b|\b(?:{_DL_PHRASE})\s+(?:\w+\s+){{0,3}}?(?:no\s+longer\s+(?:applies|apply|in\s+effect|valid)|does\s+not\s+apply)\b"
                     r"|\b(?:due|deadline|date)\b[^.;]{0,60}\banymore\b"
@@ -343,7 +343,7 @@ SUBMIT_ANY = re.compile(r"\b(?:submit\w*|deliver\w*|receiv\w*|accept\w*|due|dead
 # The interruption that triggers the FAR emergency extension, stated as a fact.
 EMERGENCY_STATED = re.compile(rf"\b(?:were|was|have\s+been|has\s+been|are|is)\s+(?:\w+\s+)?(?:interrupted|shut\s+down)\b"
                               r"|\b(?:office|building|government|agency)\b[^.;]{0,30}\b(?:was|were|is|are|has\s+been|have\s+been)\s+(?:\w+\s+)?closed\b"
-                              rf"|\b(?:emergency|unanticipated\s+event)\s+(?:has\s+|had\s+)?(?:occurred|happened|exists|arisen)\b|\bprocesses\s+(?:resume[ds]?|will\s+resume)\s+(?:on\s+)?{_DATE_NEXT}", re.I)
+                              rf"|\b(?:emergency|unanticipated\s+event)\s+(?:has\s+|had\s+)?(?:occurred|happened|exists|arisen)\b|\bprocesses\s+(?:resume[ds]?|will\s+resume)\b", re.I)
 BARE_CHANGE = re.compile(r"^\W{0,3}(?:extended|postponed|moved|changed|shortened|delayed|rescheduled|cancel+ed|withdrawn|suspended|deferred"
                          r"|advanced|revised|amended)\b", re.I)
 # Only with a pronoun or a bare date word as the object: "extends it to <date>", not "the period of performance may be
@@ -1324,7 +1324,7 @@ def analyze(text: str) -> Report:
             # A sentence with a clock time is not one, but a line of it may be ("Time zone for all deadlines: Mountain"
             # joined to the next line's deadline).
             parts = []
-            if ZONE_STATEMENT.search(sent):  # statements are at most 25 lines, so this scan of line starts is bounded
+            if ZONE_STATEMENT.search(sent) and not standard:  # unaltered standard text sets no zone  # statements are at most 25 lines, so this scan of line starts is bounded
                 # A sentence with no date may give an example time ("All times listed are Central Time (for example,
                 # 10:00 AM CT)"); with a date, only a line of it that has no clock time counts.
                 whole = not clock or (not DATE_RE.search(sent) and EXAMPLE.search(sent) is not None)
@@ -1335,7 +1335,7 @@ def analyze(text: str) -> Report:
                 part = sent[x:y]
                 if not ZONE_STATEMENT.search(part):
                     continue
-                zs = [(z.start(), _zone_key(z.group(0))) for z in TZ_RE.finditer(part) if _zone_key(z.group(0)) != "local time"]
+                zs = [(z.start(), _zone_key(z.group(0))) for z in TZ_RE.finditer(part)]
                 zs += [(z.start(), ZONE_NAMES[z.group(1).lower()]) for z in BARE_ZONE.finditer(part)]
                 if zs:
                     neg = {k for at, k in zs if ZONE_RULED_OUT.search(part, max(0, at - 14), at)}
