@@ -1,7 +1,8 @@
 """r7 (owner's choice B, 2026-10-18): READ is allow-list based. Every sentence must be positively recognized, or the run
 needs review (reason not_recognized) and every deadline is held. UNSAFE cases here read cleanly on r6 5df6397 and must
 need review on r7 with an item on the probe's own lines and the proposal cutoff held. Guards check that the base text
-still reads cleanly, that the vocabulary cannot express a change and that no blanking pattern has a wildcard."""
+still reads cleanly, that the vocabulary avoids the time, status and change lexicons and that no blanking pattern has a
+wildcard."""
 import io
 import json
 import re
@@ -82,6 +83,49 @@ UNSAFE = [
     OLD + "See the attached schedule.",
     OLD + "Proposals are welcome for another fortnight.",
 ]
+
+
+def _u(*codes):
+    return "".join(map(chr, codes))
+
+
+# The code review of 545a70a (kofi, BLOCK): each read READ there.
+UNSAFE_CR1 = [
+    # allowed words alone, or two kinds in one plain sentence
+    OLD + "Proposals shall be submitted with the questions.",
+    OLD + "The RFP will be posted on SAM.",
+    OLD + "This solicitation is an RFI.",
+    OLD + "The contract is signed.",
+    OLD + "The evaluation of proposals is complete.",
+    OLD + "Questions shall be submitted by the proposal due date.",
+    # text that is not ASCII: full-width letters, another script, look-alike letters, an invisible character
+    OLD + "This solicitation is " + _u(0xFF23, 0xFF21, 0xFF2E, 0xFF23, 0xFF25, 0xFF2C, 0xFF2C, 0xFF25, 0xFF24) + ".",
+    OLD + _u(0x0421, 0x0440, 0x043E, 0x043A, 0x20, 0x043F, 0x043E, 0x0434, 0x0430, 0x0447, 0x0438, 0x20, 0x043F, 0x0440, 0x0435,
+             0x0434, 0x043B, 0x043E, 0x0436, 0x0435, 0x043D, 0x0438, 0x0439, 0x20, 0x043F, 0x0440, 0x043E, 0x0434, 0x043B,
+             0x0435, 0x043D) + ".",
+    OLD + "Proposals are " + _u(0x0475, 0x043E, 0x0456, 0x0501) + ".",
+    OLD + "Proposals shall be submitted with" + _u(0x2063) + "in the questions.",
+    # words hidden in a solicitation number
+    OLD + "This RFP is ON-HOLD-0004.",
+    OLD + "This RFP is VOID-0004.",
+    OLD + "Solicitation No. RESOLICITED-AS-W912-0005.",
+    # a sentence split from the one it changes
+    "Proposals due November 5, 2026 at 5:00 PM ET; or with the questions.",
+    "Proposals due November 5, 2026 at 5:00 PM ET.\nOr with the questions.",
+    OLD + "NO PROPOSALS WILL BE ACCEPTED BY FAX\nor at the portal.",
+    # the month May, and a 12-hour time without AM or PM (the reviewer's note on r6 extraction)
+    OLD + "Proposals shall be submitted in may.",
+    OLD + "1. May is for proposals.",
+    "Proposals due November 5, 2026 at 5:00 ET.",
+    # found by the builder before the second review: a word taken for a list marker, a date inside an address
+    OLD + "(no) Proposals shall be submitted electronically.",
+    OLD + "Proposals shall be submitted at https://example.gov/20261112.",
+]
+
+
+@pytest.mark.parametrize("text", UNSAFE_CR1)
+def test_r7_code_review_inputs_hold_the_cutoff_on_their_own_line(text):
+    assert held_on_probe(text)
 
 
 @pytest.mark.parametrize("text", UNSAFE)
@@ -165,3 +209,9 @@ def test_r7_no_wildcards_in_recognizing_patterns():
         src = rx.pattern
         assert "\\S" not in src and "[^" not in src and "\\w*" not in src and "\\w+" not in src, src[:80]
         assert "." not in _strip(src), src[:80]
+
+
+def test_r7_a_sentence_cut_by_a_list_line_is_not_judged_in_pieces():
+    rep = core.analyze(BASE + OLD + "Proposals shall be submitted to the\n(1) contracting officer.")
+    cut = [n for n in rep.needs_review if n["reason"] == "not_recognized" and n["detail"].startswith("cut by")]
+    assert [n["line"] for n in cut] == [4, 5]

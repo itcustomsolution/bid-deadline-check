@@ -1,6 +1,8 @@
 """r7: the clean texts that the allow-list (owner's choice B) now sends to review are strict expected failures, listed with
-their exact not_recognized items in r7_false_failures.json. A listed test passes only while it still fails with an
-AssertionError and records exactly those items; a different item, or none, is reported as a failure."""
+their exact not_recognized items in r7_false_failures.json. A listed test counts as an expected failure only while
+(1) it fails with an AssertionError, (2) it records exactly the listed items, and (3) it passes when the allow-list is
+switched off (core._unrecognized returning nothing), so the failure is caused by the allow-list alone and an earlier
+rule's regression on the same text cannot hide behind it. Anything else is reported as a failure."""
 import json
 from pathlib import Path
 
@@ -19,13 +21,6 @@ def _recording(st, ds, spans):
     if _seen["items"] is not None:
         _seen["items"].update((it["line"], it["detail"]) for it in items)
     return items
-
-
-def pytest_configure(config):
-    for want in _TABLE.values():
-        for _line, detail in want:  # a flip caused only by allowed words would be a bug, not an expected failure
-            if " " not in detail and detail.lower() in core.ALLOWED_WORDS:
-                raise pytest.UsageError(f"r7_false_failures.json lists an allowed word as the reason: {detail}")
 
 
 def pytest_collection_modifyitems(items):
@@ -49,3 +44,11 @@ def pytest_runtest_call(item):
         _seen["items"] = None
     if sorted(got) != sorted(want):
         outcome.force_exception(RuntimeError(f"r7 expected-failure reason changed: expected {sorted(want)}, got {sorted(got)}"))
+        return
+    core._unrecognized = lambda st, ds, spans: []
+    try:
+        item.runtest()
+    except BaseException as e:  # noqa: BLE001 - any failure without the allow-list is not an allow-list false failure
+        outcome.force_exception(RuntimeError(f"r7 expected failure also fails without the allow-list: {type(e).__name__}: {e}"[:400]))
+    finally:
+        core._unrecognized = _orig

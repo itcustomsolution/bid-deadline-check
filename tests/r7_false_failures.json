@@ -69,7 +69,7 @@
    "not_recognized": [
     [
      4,
-     "adjust"
+     "may"
     ]
    ]
   },
@@ -141,7 +141,7 @@
    "not_recognized": [
     [
      3,
-     "tabulations"
+     "begins in lower case or with a joining or condition word"
     ]
    ]
   },
@@ -168,7 +168,7 @@
    "not_recognized": [
     [
      4,
-     "1"
+     "names more than one kind of deadline: orals, proposal_due"
     ]
    ]
   },
@@ -184,6 +184,10 @@
   {
    "nodeid": "tests/test_r3_audit.py::test_r4_review_slides_and_bring_forward_controls_stay_clean[Presentation slides two through five must show the schedule; slides are due with the proposal.]",
    "not_recognized": [
+    [
+     4,
+     "begins in lower case or with a joining or condition word"
+    ],
     [
      4,
      "slides"
@@ -267,7 +271,7 @@
    "not_recognized": [
     [
      3,
-     "method"
+     "begins in lower case or with a joining or condition word"
     ]
    ]
   },
@@ -461,6 +465,15 @@
    ]
   },
   {
+   "nodeid": "tests/test_r4_audit.py::test_r4_dl_2_part_and_section_numbers_stay_clean[The contract number is 47QTCA-26-D-0001.]",
+   "not_recognized": [
+    [
+     4,
+     "4"
+    ]
+   ]
+  },
+  {
    "nodeid": "tests/test_r4_audit.py::test_r4_dl_3_offset_before_sentence_end_stays_clean[Proposals due November 5, 2026 at 17:00 UTC-04:00. 5 copies are required.]",
    "not_recognized": [
     [
@@ -483,7 +496,7 @@
    "not_recognized": [
     [
      4,
-     "If"
+     "begins in lower case or with a joining or condition word"
     ]
    ]
   },
@@ -496,7 +509,7 @@
     ],
     [
      4,
-     "was"
+     "begins in lower case or with a joining or condition word"
     ]
    ]
   },
@@ -563,7 +576,7 @@
    "not_recognized": [
     [
      4,
-     "1"
+     "names more than one kind of deadline: orals, proposal_due"
     ]
    ]
   },
@@ -613,6 +626,19 @@
    ]
   },
   {
+   "nodeid": "tests/test_reaudit.py::test_kr2_03_a_heading_and_a_blank_line_do_not_cut_the_next_requirement[Table of Contents\\n\\n1. Introduction\\n2. Scope\\n\\nThe contractor shall provide all labor.]",
+   "not_recognized": [
+    [
+     6,
+     "cut by a statement bound or an interrupting list or heading line"
+    ],
+    [
+     7,
+     "cut by a statement bound or an interrupting list or heading line"
+    ]
+   ]
+  },
+  {
    "nodeid": "tests/test_reaudit.py::test_kr2_07_a_period_of_performance_change_is_not_a_deadline",
    "not_recognized": [
     [
@@ -645,6 +671,15 @@
     [
      4,
      "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_review_round.py::test_reviewer_case[doc2_cover_page_caps]",
+   "not_recognized": [
+    [
+     1,
+     "4"
     ]
    ]
   }

@@ -87,13 +87,25 @@ A sentence is recognized only if one of these holds:
   between them; "hrs", "hours", "sharp" or "prevailing" before the zone; the zone repeated in parentheses; an ISO 8601
   date-time). Nothing else may remain in the sentence: no second date or time, no other zone, no "or", no lot;
 - it is a zone statement "All times (in this solicitation) are <zone>." (r6 compares it with every deadline's zone);
-- it has no date, time, zone or date-like value, and once references (Section, Volume, Attachment, Block, FAR and
-  DFARS clause and form numbers, a solicitation or contract number after "Solicitation No.", "RFP" and similar),
-  page limits, font, margin and paper values, list markers, addresses (email, web, phone) and a closing "by the
-  proposal due date" or "by the deadline" are set aside, no digit is left and every word is in the tool's vocabulary
-  (`core.ALLOWED_WORDS`, plain instruction words such as offeror, submit, proposal, volume, portal, technical).
-  The vocabulary contains no word that can say when, change, cancel, negate or set a condition, and no number word;
-  a test fails if one is added. "can't" and similar are single words and are not in it.
+- it has no date, time, zone or date-like value; it does not begin in lower case or with a joining or condition word
+  ("or", "and", "but", "if", "unless", ...); it names at most one kind of deadline; and once references (Section,
+  Volume, Attachment, Block, FAR and DFARS clause numbers, form numbers other than SF-30), page limits, font, margin and
+  paper values, list markers, addresses (email, web, phone; not one with a time or status word, a date-like value or
+  four digits in a row) and a closing "by the proposal due date" or "by the deadline" (only in a sentence about
+  proposals) are set aside, no digit is left and every word is in the tool's vocabulary (`core.ALLOWED_WORDS`, plain
+  instruction words such as offeror, submit, proposal, volume, portal, technical). "may" counts only before "be" or one
+  of a few verbs.
+
+The vocabulary was chosen to leave out every word that can say when, change, cancel, negate or set a condition, every
+number word, and the names of the solicitation itself (solicitation, RFP, RFQ, RFI, IFB, contract); a test checks it
+against those word lists. The first code review showed that ordinary words could still carry a change ("Proposals
+shall be submitted with the questions.", "The RFP will be posted on SAM.", "The contract is signed."); those words were
+removed and the one-kind rule was added. That a sentence made only of the remaining words cannot change a deadline is
+a design argument tested against adversarial inputs, not a proof. Any other non-ASCII character than typographic
+quotes and dashes, bullets, the section sign and check marks (another script, a full-width or look-alike letter, an
+invisible format character), a 12-hour clock time without AM or PM in a deadline ("5:00 ET"), and a sentence at the
+edge of a statement cut by a size bound or by an interrupting list or heading line also make a sentence unrecognized.
+"can't" and similar are single words and are not in the vocabulary.
 
 The checks that still give their own reasons:
 
@@ -199,7 +211,7 @@ Known false failures (NEEDS REVIEW although nothing is wrong). Since 0.2.0rc7, e
 forms, which is most ordinary prose: numbers written as words ("three volumes"), names ("Point of Contact: Jane Doe"),
 counts ("5 copies"), "As amended, proposals are due ...", "As previously announced, ...", periods of performance,
 award dates, office hours, version numbers, a label on one line with its date on the next sentence, and any word not
-in the vocabulary. 71 earlier test texts that read cleanly before now need review; each is listed, with the exact
+in the vocabulary. 74 earlier test texts that read cleanly before now need review; each is listed, with the exact
 item it now produces, in `tests/r7_false_failures.json`. Also, from earlier releases: the same time restated in another zone or notation
 ("5:00 PM ET (2:00 PM PT)", "17:00 UTC-4 (ET)"); office hours in a deadline's sentence; numbers written like a
 screened date form (`Version 1.2.2026`, "In May, 12 2026 vehicles were inspected", `2026-111-05`, `JUN-12-1234`, and
@@ -217,9 +229,9 @@ Known misses (READ although a careful reader would not act). The 41 wordings tha
 ("The date above is no longer valid.", "Amendment 0002 grants a two-week extension.", "This RFP is no longer active.",
 "Time Zone: Central", ...) are now caught and are ordinary tests. What the allow-list cannot see: a deadline date that
 has already passed (the tool does not know today's date); an amendment that is not in the input; a supported-form
-deadline that is itself wrong; a change written entirely in recognized forms and vocabulary (none is known; the
-vocabulary is built so that none should exist, which is a design argument, not a proof); and a change in a document
-that is not English but uses only English vocabulary words. The measured rates on the development cases and on the
+deadline that is itself wrong; and a change written entirely in recognized forms and vocabulary. The first code review
+found such changes and they were closed (they are now tests); none is known after that, which is a statement about the
+probes run, not a proof. The measured rates on the development cases and on the
 independent held-out sets are in the release package, not here, because they describe one evaluation, not a
 guarantee.
 

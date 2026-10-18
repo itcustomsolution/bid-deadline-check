@@ -1310,19 +1310,18 @@ STATUS_LEXICON = re.compile(
 # Words a recognized sentence may use outside recognized spans. Plain instruction vocabulary only.
 ALLOWED_WORDS = frozenset("""
 a an the this these those each every all any its their your our which who whom whose that what where how
-of in on to for from with at via as into onto per about regarding concerning including and or
+of in on to for from at via as into onto per about regarding concerning including and or
 it they them you we us he she his her
-is are be being has have shall must will should may can
+is are be being has have shall must may can
 include includes included provide provides provided submit submits submitted submitting send email emailed emails
 upload uploaded uploading address addressed addresses direct directed contain contains containing describe describes
-demonstrate demonstrates identify identifies list listed complete completed sign signed prepare prepared use used
+demonstrate demonstrates identify identifies list listed prepare prepared use used
 using comply conform reference referenced attach attached mark marked label labeled labelled number numbered
-organize organized title titled sealed bound printed typed written respond responds answer answered answers post
-posted delivered pre
+organize organized title titled sealed bound printed typed written respond responds pre
 proposal proposals offer offers quote quotes quotation quotations bid bids response responses submission
 submissions application applications question questions offeror offerors quoter quoters vendor vendors bidder
 bidders contractor contractors respondent respondents government agency office contracting officer specialist co
-ko contract solicitation rfp rfq rfi ifb rfb volume volumes section sections page pages copy copies electronic
+ko volume volumes section sections page pages copy copies electronic
 electronically portal website site system file files format pdf word excel document documents attachment
 attachments form forms sf signature signatures technical price pricing cost management performance executive
 summary approach plan narrative experience staffing key personnel small business factor factors
@@ -1337,7 +1336,7 @@ inspection testing design development analysis assessment table text single doub
 # Fixed rule sentences, matched whole.
 _KIND_PLURAL = r"(?:proposals|offers|bids|quotes|quotations|responses|submissions|applications)"
 # A section or list number leading a sentence ("L.2", "3.1.4", "(a)"): set aside before a fixed form is matched.
-LEAD_MARKER = re.compile(r"^\s*(?:[A-Z]\.\d{1,3}(?:\.\d{1,3}){0,3}\.?|\d{1,2}(?:\.\d{1,2}){0,3}\.|\(?[a-z0-9]{1,2}\))\s+", re.I)
+LEAD_MARKER = re.compile(r"^\s*(?:[A-Z]\.\d{1,3}(?:\.\d{1,3}){0,3}\.?|\d{1,2}(?:\.\d{1,2}){0,3}\.|\(?(?:[a-z]|\d{1,2}|[ivx]{1,4})\))\s+", re.I)
 RULE_SENTENCES = [
     re.compile(rf"(?:Late|Oral|Verbal|Faxed|Facsimile|Telephonic|Telephone)\s+{_KIND_PLURAL}\s+(?:will|shall)\s+not\s+be\s+(?:accepted|considered)\s*\.?", re.I),
     re.compile(rf"No\s+{_KIND_PLURAL}\s+(?:will|shall)\s+be\s+accepted\s+by\s+(?:fax|facsimile|telephone)\s*\.?", re.I),
@@ -1357,10 +1356,8 @@ BLANK_SPANS = [
                r"\.?\s+(?:[IVX]{1,6}\b|[A-Z]\b(?:\.\d{1,3}){0,4}|\d{1,4}(?:\.\d{1,4}){0,4}(?:\([a-z0-9]{1,3}\)){0,4})", re.I),
     re.compile(r"\b(?:FAR|DFARS)\s+(?:Part\s+)?\d{1,3}(?:\.\d{1,4})?(?:-\d{1,4})?(?:\([a-z0-9]{1,4}\)){0,5}"
                r"|\b\d{2,3}\.\d{3}-\d{1,4}(?:\([a-z0-9]{1,4}\)){0,5}", re.I),
-    re.compile("|".join(FORMS), re.I),
-    re.compile(rf"\b(?i:solicitation(?:\s+(?:no\.?|number))?|rfp|rfq|ifb|rfi|notice\s+id|contract\s+(?:no\.?|number))(?:\s+is)?\s*:?\s*"
-               rf"(?![A-Z0-9-]{{0,30}}{_MON})(?=[A-Z0-9-]{{0,30}}\d)[A-Z0-9][A-Z0-9-]{{3,30}}\b"),
-    re.compile(r"(?:^\s*(?:\d{1,2}\.|\(?[a-z0-9]{1,2}\))(?=\s|$)|\((?:[a-z]|[ivx]{1,4})\))", re.I),  # list markers
+    re.compile("|".join(f for f in FORMS if not f.startswith("SF")) + r"|\bSF[- ]?(?:18|26|33|252|255|294|295|330|1442|1449|LLL)\b", re.I),
+    re.compile(r"(?:^\s*(?:\d{1,2}\.|\(?(?:[a-z]|\d{1,2}|[ivx]{1,4})\))(?=\s|$)|\((?:[a-z]|[ivx]{1,4})\))", re.I),  # list markers
     re.compile(r"^\s*(?:[A-Z]\.\d{1,3}(?:\.\d{1,3}){0,3}|\d{1,2}(?:\.\d{1,2}){1,3})\.?(?=\s)"),  # "L.2", "3.1.4" leading a sentence
     re.compile(r"\b\d{1,2}(?:\.\d)?[- ]?(?:point|pt)\b|\b\d(?:\.\d{1,2})?[- ]?inch(?:es)?\b|\b8\.5\s*(?:x|by)\s*11\b"
                r"|\bTimes\s+New\s+Roman\b|\bpast\s+performance\b|\be-mail\b|\bby\s+(?:e-?mail|mail|hand|courier)\b", re.I),
@@ -1417,23 +1414,40 @@ def _has_temporal(text: str) -> bool:
                 or ISO_TIME.search(text) or _unread_datelike(text))
 
 
+MAY_VERBS = frozenset("be submit include provide send email upload use contact direct attach reference".split())
+# Non-ASCII characters a recognized sentence may contain (typographic quotes and dashes, bullets, section sign, check
+# marks). Any other non-ASCII character, a look-alike or full-width letter, or an invisible format character, makes the
+# sentence unrecognized: the vocabulary check reads ASCII words only.
+ALLOWED_NON_ASCII = frozenset(chr(c) for c in (0x2018, 0x2019, 0x201C, 0x201D, 0x2013, 0x2014, 0x2022, 0x25CF, 0x25AA,
+                                               0x2026, 0x00A7, 0x2713, 0x2714, 0x2612))
+# A sentence that begins in lower case or with a joining or condition word continues or qualifies the one before it.
+CONTINUES_PREVIOUS = re.compile(r"\s*(?:or|and|nor|but|either|neither|plus|also|then|yet|so|except|unless|if)\b", re.I)
+
+
 def _words_ok(rest: str) -> str | None:
     """The first word or digit of `rest` that is not allowed, or None."""
     rest = rest.replace(chr(0x2019), "'")
     if (dg := re.search(r"\d", rest)):
         return dg.group(0)
-    for i, w in enumerate(re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?", rest)):
-        if i and w in ("May", "MAY"):
-            return w  # the month, not the verb
+    words = re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?", rest)
+    for i, w in enumerate(words):
         lw = w.lower()
+        if lw == "may" and (i + 1 == len(words) or words[i + 1].lower() not in MAY_VERBS):
+            return w  # possibly the month: "may" counts only as a verb before one of MAY_VERBS
         if lw not in ALLOWED_WORDS and not (lw.endswith("'s") and lw[:-2] in ALLOWED_WORDS):
             return w
     return None
 
 
+def _quiet(text: str, longest: int = 64) -> bool:
+    """No letter run in `text` is longer than `longest` or in the time or status lexicon."""
+    return not any(len(w) > longest or TIME_LEXICON.fullmatch(w) or STATUS_LEXICON.fullmatch(w) for w in re.findall(r"[A-Za-z]+", text))
+
+
 def _addresses(sent: str):
+    datelike = _datelike_spans(sent)
     for m in ADDRESS.finditer(sent):
-        if not any(TIME_LEXICON.fullmatch(w) or STATUS_LEXICON.fullmatch(w) for w in re.findall(r"[A-Za-z]+", m.group(0))):
+        if _quiet(m.group(0)) and not re.search(r"\d{4}", m.group(0)) and not any(x < m.end() and m.start() < y for x, y in datelike):
             yield m.span()
 
 
@@ -1463,8 +1477,12 @@ def _plain_offender(sent: str) -> str | None:
         for m in rx.finditer(sent):
             if _num(m.group(1)):
                 blank(*m.span())
+    kinds = {k for k, rx in KIND_RES if rx.search(sent)}
+    if len(kinds) > 1:
+        return "names more than one kind of deadline: " + ", ".join(sorted(kinds))
     for m in DEADLINE_REF.finditer(sent):
-        blank(*m.span())
+        if kinds <= {"proposal_due"}:
+            blank(*m.span())
     return _words_ok("".join(chars))
 
 
@@ -1492,6 +1510,8 @@ def _deadline_offender(sent: str, a: int, b: int, d: Deadline) -> str | None:
     form = LEAD_MARKER.sub("", _norm_ws("".join(out)), count=1)
     if re.search(r"\d", form) or _has_temporal(form.replace("<D>", " ").replace("<T>", " ").replace("<Z>", " ")):
         return "a digit, or a second date, time or zone"
+    if re.fullmatch(r"(?:[1-9]|1[0-2]):\d{2}(?::\d{2})?", d.time or ""):
+        return "a clock time from 1:00 to 12:59 without AM or PM"
     if any(rx.fullmatch(form) for rx in _deadline_forms(d.kind)):
         return None
     return f"not a supported deadline form: {form[:80]}"
@@ -1504,6 +1524,8 @@ ZONE_FORM = re.compile(r"(?:all\s+)?(?:dates\s+and\s+)?times\s+(?:(?:in|listed\s
 
 def _offender(sent: str, own: list, proposal_times: set) -> str | None:
     """None if the sentence is recognized; otherwise what is not (a word, a digit or a form)."""
+    if (odd := next((ch for ch in sent if ord(ch) > 126 and ch not in ALLOWED_NON_ASCII), None)) is not None:
+        return f"a non-ASCII or invisible character U+{ord(odd):04X}"
     body = LEAD_MARKER.sub("", sent.strip(), count=1)
     if not re.search(r"[A-Za-z0-9]", body):
         return None
@@ -1514,6 +1536,8 @@ def _offender(sent: str, own: list, proposal_times: set) -> str | None:
         if any(t == _time_key(late.group("time")) and (not tz or z == _zone_key(tz)) for t, z in proposal_times):
             return None
         return "a late-receipt time that is not the proposal deadline's"
+    lead_word = re.match(r"\s*([A-Za-z]+)", body)
+    continues = bool(lead_word) and (lead_word.group(1)[0].islower() or CONTINUES_PREVIOUS.match(body) is not None)
     if _has_temporal(sent):
         if not own:
             form = _norm_ws(TZ_RE.sub("<Z>", body))
@@ -1522,21 +1546,30 @@ def _offender(sent: str, own: list, proposal_times: set) -> str | None:
         if len(own) != 1:
             return "a date, time or zone not read as one complete deadline"
         return _deadline_offender(sent, *own[0])
+    if continues:
+        return "begins in lower case or with a joining or condition word"
     return _plain_offender(sent)
 
 
 def _unrecognized(st: _Statement, ds: list, spans: list) -> list[dict]:
     """Review items (reason not_recognized) for the sentences of a statement that are not recognized. Called after the
     zone-statement pass, so a deadline's completeness includes zone conflicts."""
-    items, pos = [], 0
+    items, pos, after_standard = [], 0, False
     proposal_times = {(_time_key(d.time), _zone_key(d.timezone)) for d in ds if d.kind == "proposal_due" and _complete(d)}
     for sent in iter_sentences(st.text):
         start, pos = pos, pos + len(sent)
         inside = [(a - start, b - start, d) for d, (a, b) in zip(ds, spans) if start <= a and b <= pos]
-        if any(not _complete(d) for *_, d in inside):
+        cut = ((st.forced or st.open_start) and start == 0) or ((st.forced or st.open_end) and pos == len(st.text))
+        standard = any(rx.fullmatch(LEAD_MARKER.sub("", sent.strip(), count=1)) for _, rx in STANDARD_CLAUSES)
+        if cut and sent.strip():
+            why = "cut by a statement bound or an interrupting list or heading line"
+        elif any(not _complete(d) for *_, d in inside):
             why = "a deadline that is not complete"
+        elif after_standard and sent.strip(" \t.;,").lower() in ("or", "and"):
+            why = None  # the "; or" that ends a standard clause's paragraph, split off at the ";"
         else:
             why = _offender(sent, inside, proposal_times)
+        after_standard = standard
         if why:
             lead = start + len(sent) - len(sent.lstrip())
             items.append({"line": st.line_at(lead), "end_line": st.line_at(max(start, pos - 1)), "reason": "not_recognized",
