@@ -7,9 +7,10 @@ Read a government solicitation (RFP, RFQ, IFB; PDF or text) and get back:
   the time and zone written with it, several deadlines on one line are all kept, and anything
   unresolved (no time, no zone, "EOD", "midnight", an impossible date, a date described as withdrawn,
   cancelled, superseded or no longer in effect, a date taken from a "received after" clause) is flagged
-- An **outcome**, READ or NEEDS REVIEW, and each sentence about a deadline that could not be resolved
-  (a change with no new date read, a cancellation, TBD, a date form it does not read), with its exact
-  text and a reason. A deadline that such a sentence may change is marked not actionable as stated
+- An **outcome**, READ or NEEDS REVIEW. READ is allow-list based: every sentence must be in a form this tool
+  recognizes. Each sentence that is not, and each sentence about a deadline that could not be resolved (a change with
+  no new date read, a cancellation, TBD, a date form it does not read), is listed with its exact text and a reason,
+  and the deadlines it may change are marked not actionable as stated
 - **Page limits** per volume
 - **Format rules**: font, margins, paper size, spacing, file format
 - **Forms and clauses**: SF-1449, SF-33, SF-30, FAR 52.xxx, DFARS 252.xxx
@@ -33,30 +34,68 @@ bid-deadline-check solicitation.txt -f md
 bid-deadline-check solicitation.txt -f json
 ```
 
-Example output (from `tests/fixtures/rfp_sample.txt`, a synthetic RFP):
+Example output (from `tests/fixtures/rfp_sample.txt`, a synthetic RFP; most sentences of a real solicitation are
+outside the recognized forms, so NEEDS REVIEW is the normal result):
 
 ```
-OUTCOME: NEEDS REVIEW (0 unresolved deadline sentence(s), 3 warning(s))
+OUTCOME: NEEDS REVIEW (8 sentence(s) to review, 11 warning(s))
+NEEDS REVIEW (read these in the source)
+  ? [not_recognized] line 1: SOLICITATION NO. EXAMPLE-26-R-0001 (SYNTHETIC SAMPLE)  (not recognized: SYNTHETIC)
+  ...
+  ? [not_recognized] line 8: L.3 A pre-proposal conference (site visit) will be held 10/27/2026 at 10:00 AM local time; registration is due by 10/23/2026.  (not recognized: a deadline that is not complete)
+  ...
+  ? [not_recognized] line 21: The Government will evaluate proposals in accordance with Section M.  (not recognized: evaluate)
 DEADLINES
-  [questions_due] October 20, 2026 2:00 PM Eastern Time  (line 6)
-  [proposal_due] November 5, 2026 11:00 AM EDT  (line 7)
+  [questions_due] October 20, 2026 2:00 PM Eastern Time  (line 6)  NOT ACTIONABLE AS STATED: needs review
+  [proposal_due] November 5, 2026 11:00 AM EDT  (line 7)  NOT ACTIONABLE AS STATED: needs review
   [site_visit] 10/27/2026 10:00 AM local time  (line 8)  CHECK: zone_unanchored  NOT ACTIONABLE AS STATED: needs review
   [registration] 10/23/2026 (no time) (no timezone)  (line 8)  CHECK: no_time  NOT ACTIONABLE AS STATED: needs review
 PAGE LIMITS
-  Volume I Technical: 20 pages  (line 13)
-  Volume II Past Performance: 10 pages  (line 14)
 ...
-WARNINGS
-  ! Deadline on line 8: "local time" names no place; confirm the zone.
-  ! Deadline on line 8 has a date but no time of day; confirm the cutoff time.
-  ! Requirement on line 9 is long or continues past a parsing bound; the checklist shows an excerpt. Read lines 9-9.
 ```
 
 ## What `--strict` means
 
 Every run reports an outcome: **READ** or **NEEDS REVIEW** (`outcome` in JSON, the first line of text output).
-`--strict` exits 2 unless the outcome is READ, and 1 when the input cannot be read. READ means only that none of the
-implemented checks fired:
+`--strict` exits 2 unless the outcome is READ, and 1 when the input cannot be read.
+
+Since 0.2.0rc7, READ is **allow-list based**: every sentence of the input must be positively recognized (next
+section), and in addition none of the checks below may fire. An unrecognized sentence is a review item with reason
+`not_recognized`, its exact text and a `detail` naming the first word, digit or form that is not recognized, and it
+holds **every** deadline, because the tool cannot tell which deadline it changes. The cost is deliberate: almost any
+real solicitation, and most ordinary prose, needs review. READ is meant for short, plainly written deadline notices in
+the supported forms; on anything else, NEEDS REVIEW is the expected result and says only that a person must read it.
+
+### Recognized sentences (the allow-list)
+
+A sentence is recognized only if one of these holds:
+
+- it is, whole, an unaltered standard clause (below), the SF-30 Block 11 line checked "[X] is not extended", or one of
+  the fixed rule sentences "Late (Oral, Verbal, Faxed, Facsimile, Telephonic, Telephone) proposals (offers, bids,
+  quotes, quotations, responses, submissions, applications) will (shall) not be accepted (considered).", "No proposals
+  will be accepted by fax (facsimile, telephone).", "The Government reserves the right to cancel this solicitation."
+  and "The Government may cancel this solicitation at any time.";
+- it is a late-receipt rule, whole, whose time and zone equal a complete proposal deadline's ("proposals received
+  after 5:00 PM ET will be rejected");
+- it holds exactly one complete deadline (date, time and zone, nothing flagged) and, with that date, time and zone in
+  place, is one of these forms, with a label that names that deadline's own kind: "Proposals due <when>.", "Proposal
+  due date: <when>", "Closing date: <when>", "Proposals are (must be, shall be, will be) due (submitted, received,
+  delivered) [electronically | via email] [to <address>] [no later than | not later than | NLT | on or before | by |
+  on] <when>.", "Offerors must (shall) submit proposals ... <when>.", a table row "| Proposals due | <date> | <time
+  zone> |", a capitals label above a date line, "Due Date: <date> Due Time: <time zone>" and "This RFQ (RFP, IFB,
+  solicitation) closes <when>." Here <when> is the date with its time and zone in the usual orders (", at, @, |, -, /"
+  between them; "hrs", "hours", "sharp" or "prevailing" before the zone; the zone repeated in parentheses; an ISO 8601
+  date-time). Nothing else may remain in the sentence: no second date or time, no other zone, no "or", no lot;
+- it is a zone statement "All times (in this solicitation) are <zone>." (r6 compares it with every deadline's zone);
+- it has no date, time, zone or date-like value, and once references (Section, Volume, Attachment, Block, FAR and
+  DFARS clause and form numbers, a solicitation or contract number after "Solicitation No.", "RFP" and similar),
+  page limits, font, margin and paper values, list markers, addresses (email, web, phone) and a closing "by the
+  proposal due date" or "by the deadline" are set aside, no digit is left and every word is in the tool's vocabulary
+  (`core.ALLOWED_WORDS`, plain instruction words such as offeror, submit, proposal, volume, portal, technical).
+  The vocabulary contains no word that can say when, change, cancel, negate or set a condition, and no number word;
+  a test fails if one is added. "can't" and similar are single words and are not in it.
+
+The checks that still give their own reasons:
 
 - a proposal due date and a questions-due date were found, neither negated or withdrawn, and page limits were found;
 - every extracted deadline has a valid calendar date in 1900 to 2100 whose weekday, if written, matches; a clock time
@@ -98,6 +137,7 @@ these as "NOT ACTIONABLE AS STATED"; the checklist (`md`, `csv`) lists the revie
 | `unread_date_value` | contains a date-like value this tool does not read ("2026.11.5", "20261112", "2026 11 12", "Friday", "tomorrow", "next week", "Thanksgiving", "end of month") |
 | `zone_statement` | sets, changes or redefines the zone for all times ("All times are Central Time, not Eastern Time", "Times in this RFP are Central Time", "deadlines are in Central Time", "All times are changed from Eastern Time to Central Time", "Time zone for all deadlines: Mountain", "\"ET\" in this RFP means Central Time") in a way that conflicts with a deadline's zone or rules one out. A deadline gets one conflict code however many statements there are, and at most 50 statements are listed one by one |
 | `unsupported_date_form` | (any line) holds one of the screened malformed forms listed below |
+| `not_recognized` | (any sentence, since 0.2.0rc7) is not one of the recognized forms above; `detail` names the first word, digit or form that is not; every deadline is held, and each deadline carries one `not_recognized:N` code after its other reasons |
 
 What names a deadline: the deadline words "due", "deadline", "closing", "close date", "cut-off", "no later than",
 "not later than", "NLT", "on or before"; "receipt of offers" (proposals, bids, quotes, responses); "time" or "date"
@@ -106,10 +146,12 @@ What names a deadline: the deadline words "due", "deadline", "closing", "close d
 (offers, bids, quotes, responses) followed within three words by a form of accept, receive, submit, deliver or "due".
 A sentence without any of these is not reviewed.
 
-It does **not** mean that every deadline or requirement in the document was found, that the extracted values are what
-the agency intended, or that a submission would be timely. `--strict` is an extraction aid, not a deadline or amendment
-safety gate: the rules recognize listed wordings, and wordings outside them can still read cleanly (see "Known
-misses"). Read the solicitation and every amendment yourself.
+Every sentence is also checked against the allow-list above, whether or not it uses any of these words.
+
+READ does **not** mean that every deadline or requirement in the document was found, that the extracted values are
+what the agency intended, that the input is the whole solicitation with every amendment, or that a submission would be
+timely. With the allow-list, READ is defensible only for input written entirely in the supported forms; the remaining
+gaps are listed under "Known misses". Read the solicitation and every amendment yourself.
 
 ## Supported scope
 
@@ -153,7 +195,12 @@ negated changes was tried in this release and removed, because it could not be m
 next sentence ("... will not be extended. Offerors have an additional week."). Hard, paper, printed and physical copies
 name a proposal submission, so a separate hard-copy deadline conflicts with the electronic one.
 
-Known false failures (NEEDS REVIEW although nothing is wrong): the same time restated in another zone or notation
+Known false failures (NEEDS REVIEW although nothing is wrong). Since 0.2.0rc7, every sentence outside the supported
+forms, which is most ordinary prose: numbers written as words ("three volumes"), names ("Point of Contact: Jane Doe"),
+counts ("5 copies"), "As amended, proposals are due ...", "As previously announced, ...", periods of performance,
+award dates, office hours, version numbers, a label on one line with its date on the next sentence, and any word not
+in the vocabulary. 71 earlier test texts that read cleanly before now need review; each is listed, with the exact
+item it now produces, in `tests/r7_false_failures.json`. Also, from earlier releases: the same time restated in another zone or notation
 ("5:00 PM ET (2:00 PM PT)", "17:00 UTC-4 (ET)"); office hours in a deadline's sentence; numbers written like a
 screened date form (`Version 1.2.2026`, "In May, 12 2026 vehicles were inspected", `2026-111-05`, `JUN-12-1234`, and
 on a deadline line `RFP 2026-1-05`); a validity or performance-period change in a sentence that names a deadline; a negated change ("The proposal due date
@@ -166,16 +213,15 @@ statement is not applied); a four-digit time without "hours" ("by 1600 CST"); da
 `14-JAN-2027`; a notice of intent to bid or a second round of questions read as a second deadline of the same kind; a standard clause in any wording other than the published one; and an announcement verb in a deadline's
 clause ("Questions are due as communicated..." stays READ only because "as" marks a reference).
 
-Known misses (READ although a careful reader would not act). Two independent review rounds kept finding wordings the
-rules do not read; 40 of them are recorded, with their exact text, as expected failures in
-`tests/test_r6_review_round2.py` (`KNOWN_MISSES`), among them "The date above is no longer valid.", "Amendment 0002 grants
-a two-week extension.", "Offerors have one additional week to respond.", "Proposal due date: to be advised.", "This RFP
-is no longer active.", "Time Zone: Central", and words split by a hyphen across a line break ("post-" / "poned").
-Also missed: a deadline date that has already passed (the tool does not know today's date); a change sentence that uses
-none of the deadline words above; a change or new deadline written in a date form outside both lists; a change stated only by reference
-("see Amendment 0003 for the new date") with no change word; and any wording this rule-based tool has not been
-written for. The measured rates on the development cases and on an independent held-out set are in the release
-package, not here, because they describe one evaluation, not a guarantee.
+Known misses (READ although a careful reader would not act). The 41 wordings that 0.2.0rc6 recorded as read cleanly
+("The date above is no longer valid.", "Amendment 0002 grants a two-week extension.", "This RFP is no longer active.",
+"Time Zone: Central", ...) are now caught and are ordinary tests. What the allow-list cannot see: a deadline date that
+has already passed (the tool does not know today's date); an amendment that is not in the input; a supported-form
+deadline that is itself wrong; a change written entirely in recognized forms and vocabulary (none is known; the
+vocabulary is built so that none should exist, which is a design argument, not a proof); and a change in a document
+that is not English but uses only English vocabulary words. The measured rates on the development cases and on the
+independent held-out sets are in the release package, not here, because they describe one evaluation, not a
+guarantee.
 
 ## Library
 

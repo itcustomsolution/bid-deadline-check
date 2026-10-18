@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bid-deadline-check"
-version = "0.2.0rc6"
+version = "0.2.0rc7"
 description = "Extract deadlines (with timezone), page limits, forms and a compliance checklist from government solicitations. Rule-based, local, no LLM."
 readme = "README.md"
 license = "MIT"

@@ -894,12 +894,15 @@ RANGE_WORDS = re.compile(r"\b(?:through|thru|to|until|from|period|performance|st
 ZONE_NAMES = {"eastern": "et", "central": "ct", "mountain": "mt", "pacific": "pt", "alaska": "akt", "hawaii": "ht"}
 
 
-def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES, issues: list[int] | None = None) -> list[Deadline]:
+def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES, issues: list[int] | None = None,
+                  spans: list | None = None) -> list[Deadline]:
     """Deadlines in one statement. `prev` is the adjacent statement before it, used as the label of a date that
     begins this statement ("Proposals are due no later than the date and time below." / "November 5, ...").
     `issues`, when given, receives a review item (statement offsets, reason) for each clause about a deadline that
     was not resolved: a change, cancellation, TBD, negation, relative shift or checked SF-30 box with no replacement
-    date read, a clock time with no date, or a date that was not read as a deadline."""
+    date read, a clock time with no date, or a date that was not read as a deadline. `spans`, when given, receives each
+    deadline's (start, end) offsets in the statement, from its written time or date to the end of its zone, in the
+    order of the result (r7)."""
     out: list[Deadline] = []
     starts: list[int] = []                 # date offset of each deadline in `out`
     consumed: list[tuple[int, int]] = []   # spans already bound to some date, as time or zone
@@ -1066,6 +1069,8 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES, is
             out.append(Deadline(kind, _norm_ws(dm.group(0)), _norm_ws(time) if time else None, _norm_ws(tz) if tz else None,
                                 st.line_at(dm.start()), _norm_ws(s[lo:hi]), st.line_at(max(dm.start(), hi - 1)), amb))
             starts.append(dm.start())
+            if spans is not None:
+                spans.append((lead, bind_end))
     # Any other clock time in the same sentence after a deadline's date ("..., changed to 6:00 PM ET", "3:00 PM ET
     # for hand delivery") is attached to that deadline, so one time is never presented as the only cutoff.
     # Spans and starts are in text order, so each time is placed with two binary searches (linear overall).
@@ -1266,6 +1271,279 @@ def _norm_key(d: Deadline) -> tuple:
     return (parts if isinstance(parts, tuple) else d.date.lower(), _time_key(d.time), _zone_key(d.timezone))
 
 
+
+# r7 allow-list (the owner's choice B, 2026-10-18; docs/DESIGN-R7.md). Every sentence must be positively recognized, or
+# it is a review item (not_recognized) that holds every deadline. A sentence is recognized if it is an unaltered
+# standard clause or a fixed rule sentence; or it holds exactly one complete deadline and, with that deadline's date,
+# time and zone replaced by placeholders, matches a fixed form whose label names the deadline's kind; or it holds no
+# date, time, zone or date-like value and, once references, page limits, format values and addresses are blanked, no
+# digit is left and every word is in ALLOWED_WORDS. ALLOWED_WORDS holds no word that can say when, change, cancel, negate
+# or make a condition (test_r7_vocabulary_invariant). Blanking patterns carry no wildcard (test_r7_no_wildcards). The r6
+# checks still run; this layer only adds review items.
+TIME_LEXICON = re.compile(
+    r"(?:days?|daily|weeks?|weekly|months?|monthly|years?|yearly|annual\w*|hours?|hrs?|minutes?|mins?|seconds?"
+    r"|fortnights?|dates?|dated|times?|timely|timeline\w*|timeframe\w*|schedul\w*|calendar\w*|periods?|windows?"
+    r"|deadlines?|due|cut-?offs?|zones?|timezones?|noon|midnight|morning\w*|afternoon\w*|evening\w*|tonight|today"
+    r"|tomorrow|yesterday|late|later|latest|lateness|early|earlier|earliest|before|after|afterwards?|until|till|til"
+    r"|prior|within|since|during|following|next|last|again|still|now|soon|then|when|whenever|once|immediate\w*"
+    r"|prompt\w*|expir\w*|elaps\w*|passed|passes|past|future|current\w*|interim|temporar\w*|permanent\w*|duration"
+    r"|end|ends|ended|ending|begin\w*|began|start\w*|commenc\w*|resum\w*|o'clock|eod|cob|eob|receipt\w*|receiv\w*"
+    r"|closing|close[sd]?|open\w*|jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|june?|july?|aug(?:ust)?"
+    r"|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|\w+day|eastern|central|mountain|pacific|alaska"
+    r"|hawaii|local|zulu|utc|gmt)", re.I)
+STATUS_LEXICON = re.compile(
+    r"(?:extend\w*|extens\w*|chang\w*|mov(?:e|es|ed|ing)|postpon\w*|revis\w*|amend\w*|reschedul\w*|delay\w*|advanc\w*"
+    r"|push\w*|slip\w*|slid\w*|shift\w*|shorten\w*|curtail\w*|alter\w*|adjust\w*|accelerat\w*|revok\w*|rescind\w*"
+    r"|rescission\w*|suspen\w*|cancel\w*|withdr\w*|supersed\w*|replac\w*|substitut\w*|reset\w*|updat\w*|modif\w*"
+    r"|correct\w*|delet\w*|waiv\w*|remov\w*|eliminat\w*|insert\w*|vice|instead|lieu|rather|former\w*|original\w*"
+    r"|previous\w*|old|new|newly|defer\w*|toll\w*|paus\w*|stay(?:s|ed)?|hold\w*|held|abeyance|active|inactive"
+    r"|re-?open\w*|re-?establish\w*|reissu\w*|reinstat\w*|resolicit\w*|reconsider\w*|resubmi\w*|restor\w*|revert\w*"
+    r"|retract\w*|recall\w*|redo|repost\w*|reannounc\w*|renew\w*|reconven\w*"
+    r"|live|valid\w*|invalid\w*|void\w*|null\w*|appl(?:y|ies|ied|icable)|effect\w*|force|off|gone|over|ignor\w*"
+    r"|disregard\w*|strike|struck|drop\w*|error\w*|mistake\w*|incorrect\w*|wrong|tbd|tba|determin\w*|announc\w*"
+    r"|advis\w*|pending|forthcoming|follow\w*|further|more|extra|another|additional\w*|added|grant\w*|give\w*|given"
+    r"|not|no|never|none|nor|neither|nothing|without|unless|if|except\w*|however|but|although|though|otherwise|only"
+    r"|same|nevertheless|regardless|despite|notwithstanding|cannot|can't|won't|don't|doesn't|isn't|aren't|wasn't"
+    r"|was|were|had|been|would|could|might|unless|whether|either|first|second|third|one|two|three|four|five|six"
+    r"|seven|eight|nine|ten|eleven|twelve|twenty|thirty|hundred|half|several|few|many|both|instead|above|below"
+    r"|herein|hereby|thereof|said|subject|pursuant|accordance)", re.I)
+# Words a recognized sentence may use outside recognized spans. Plain instruction vocabulary only.
+ALLOWED_WORDS = frozenset("""
+a an the this these those each every all any its their your our which who whom whose that what where how
+of in on to for from with at via as into onto per about regarding concerning including and or
+it they them you we us he she his her
+is are be being has have shall must will should may can
+include includes included provide provides provided submit submits submitted submitting send email emailed emails
+upload uploaded uploading address addressed addresses direct directed contain contains containing describe describes
+demonstrate demonstrates identify identifies list listed complete completed sign signed prepare prepared use used
+using comply conform reference referenced attach attached mark marked label labeled labelled number numbered
+organize organized title titled sealed bound printed typed written respond responds answer answered answers post
+posted delivered pre
+proposal proposals offer offers quote quotes quotation quotations bid bids response responses submission
+submissions application applications question questions offeror offerors quoter quoters vendor vendors bidder
+bidders contractor contractors respondent respondents government agency office contracting officer specialist co
+ko contract solicitation rfp rfq rfi ifb rfb volume volumes section sections page pages copy copies electronic
+electronically portal website site system file files format pdf word excel document documents attachment
+attachments form forms sf signature signatures technical price pricing cost management performance executive
+summary approach plan narrative experience staffing key personnel small business factor factors
+evaluation criteria requirement requirements statement work sow pws instructions information point contact poc
+name phone telephone cover letter capability capabilities sam gov mil piee services service supplies team teaming
+subcontractor subcontractors prime company firm organization entity uei cage code naics size standard font pt margin
+margins inch inches spaced spacing paper landscape portrait presentation presentations contents introduction scope
+background overview general labor materials equipment facilities task tasks deliverable deliverables quality support
+training staff employees software hardware data report reports project program operations maintenance installation
+inspection testing design development analysis assessment table text single double size point
+""".split())
+# Fixed rule sentences, matched whole.
+_KIND_PLURAL = r"(?:proposals|offers|bids|quotes|quotations|responses|submissions|applications)"
+# A section or list number leading a sentence ("L.2", "3.1.4", "(a)"): set aside before a fixed form is matched.
+LEAD_MARKER = re.compile(r"^\s*(?:[A-Z]\.\d{1,3}(?:\.\d{1,3}){0,3}\.?|\d{1,2}(?:\.\d{1,2}){0,3}\.|\(?[a-z0-9]{1,2}\))\s+", re.I)
+RULE_SENTENCES = [
+    re.compile(rf"(?:Late|Oral|Verbal|Faxed|Facsimile|Telephonic|Telephone)\s+{_KIND_PLURAL}\s+(?:will|shall)\s+not\s+be\s+(?:accepted|considered)\s*\.?", re.I),
+    re.compile(rf"No\s+{_KIND_PLURAL}\s+(?:will|shall)\s+be\s+accepted\s+by\s+(?:fax|facsimile|telephone)\s*\.?", re.I),
+    re.compile(r"The\s+Government\s+reserves\s+the\s+right\s+to\s+cancel\s+this\s+solicitation\s*\.?", re.I),
+    re.compile(r"The\s+Government\s+may\s+cancel\s+this\s+solicitation\s+at\s+any\s+time\s*\.?", re.I),
+    re.compile(r"(?:\d{1,2}\.\s*)?The\s+hour\s+and\s+date\s+specified\s+for\s+receipt\s+of\s+Offers\s*\[\s*\]\s*is\s+extended\s*,?\s*"
+               + CHECKED + r"\s*is\s+not\s+extended\s*\.?", re.I),
+]
+# "proposals received after 5:00 PM ET will be rejected", a whole sentence, for a complete proposal deadline's time.
+LATE_RESTATE = re.compile(rf"(?:late\s+)?{_KIND_PLURAL}\s+received\s+after\s+(?P<time>{TIME})(?:\s*(?P<tz>{TZ}))?\s+(?:will|shall)\s+"
+                          r"(?:be\s+(?:rejected|returned)|not\s+be\s+(?:accepted|considered|evaluated))\s*\.?", re.I)
+# Blanked in a sentence with no date, time or zone. No pattern here has a wildcard; an address is kept only if none of
+# its words is in the time or status lexicon, and nothing is blanked that overlaps a date-like value.
+_MON = r"(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)"
+BLANK_SPANS = [
+    re.compile(r"\b(?:Section|Sec|Paragraph|Para|Clause|Part|Attachment|Exhibit|Volume|Vol|Appendix|Annex|Tab|Item|Block|Table|Figure)"
+               r"\.?\s+(?:[IVX]{1,6}\b|[A-Z]\b(?:\.\d{1,3}){0,4}|\d{1,4}(?:\.\d{1,4}){0,4}(?:\([a-z0-9]{1,3}\)){0,4})", re.I),
+    re.compile(r"\b(?:FAR|DFARS)\s+(?:Part\s+)?\d{1,3}(?:\.\d{1,4})?(?:-\d{1,4})?(?:\([a-z0-9]{1,4}\)){0,5}"
+               r"|\b\d{2,3}\.\d{3}-\d{1,4}(?:\([a-z0-9]{1,4}\)){0,5}", re.I),
+    re.compile("|".join(FORMS), re.I),
+    re.compile(rf"\b(?i:solicitation(?:\s+(?:no\.?|number))?|rfp|rfq|ifb|rfi|notice\s+id|contract\s+(?:no\.?|number))(?:\s+is)?\s*:?\s*"
+               rf"(?![A-Z0-9-]{{0,30}}{_MON})(?=[A-Z0-9-]{{0,30}}\d)[A-Z0-9][A-Z0-9-]{{3,30}}\b"),
+    re.compile(r"(?:^\s*(?:\d{1,2}\.|\(?[a-z0-9]{1,2}\))(?=\s|$)|\((?:[a-z]|[ivx]{1,4})\))", re.I),  # list markers
+    re.compile(r"^\s*(?:[A-Z]\.\d{1,3}(?:\.\d{1,3}){0,3}|\d{1,2}(?:\.\d{1,2}){1,3})\.?(?=\s)"),  # "L.2", "3.1.4" leading a sentence
+    re.compile(r"\b\d{1,2}(?:\.\d)?[- ]?(?:point|pt)\b|\b\d(?:\.\d{1,2})?[- ]?inch(?:es)?\b|\b8\.5\s*(?:x|by)\s*11\b"
+               r"|\bTimes\s+New\s+Roman\b|\bpast\s+performance\b|\be-mail\b|\bby\s+(?:e-?mail|mail|hand|courier)\b", re.I),
+    re.compile(r"\(?\b\d{3}\)?[\s.-]?\d{3}[\s.-]\d{4}\b"),
+]
+ADDRESS = re.compile(r"\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){1,4}\b|\bhttps?://[A-Za-z0-9./_~%-]{1,200}"
+                     r"|\bwww\.[A-Za-z0-9./_~%-]{1,200}|\b[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,3}\.(?:gov|mil|com|org|net|us)\b")
+PAGE_SPANS = [re.compile(p, re.I) for p in PAGE_LIMIT[:8]]  # not the last pattern: it reads past unread text
+# A reference to the deadline that gives no value, at the end of the sentence: "must be received by the deadline".
+DEADLINE_REF = re.compile(r"\b(?:(?:received|submitted|delivered)\s+)?by\s+the\s+(?:(?:proposal|offer|quote|quotation|bid|response"
+                          r"|submission)\s+)?(?:due\s+date|closing\s+date|deadline)(?=\s*[.;]?\s*$)", re.I)
+# Fixed forms of a deadline sentence, with placeholders <D> date, <T> time, <Z> zone (<A> an address). The label must
+# name the deadline's kind; nothing else may remain.
+_KIND_LABEL = {
+    "proposal_due": r"(?:proposals?|offers?|quotes?|quotations?|bids?|responses?|submissions?|applications?)(?:\s+(?:due\s+date|due"
+                    r"|deadline|closing\s+date|submission\s+deadline))?|(?:closing|due)\s+date(?:\s+and\s+time)?",
+    "questions_due": r"(?:questions?|inquiries|inquiry)(?:\s+(?:due\s+date|due|deadline))?",
+    "site_visit": r"(?:site\s+visits?|pre-?(?:proposal|bid|quote)\s+conferences?)",
+    "orals": r"(?:oral\s+presentations?|orals)",
+    "registration": r"registration(?:\s+(?:due\s+date|deadline))?",
+    "intent_to_bid": r"notices?\s+of\s+intent(?:\s+to\s+(?:bid|propose))?(?:\s+(?:due\s+date|due|deadline))?",
+    "revised_proposal_due": r"(?:final\s+proposal\s+revisions?|FPRs?|BAFOs?|(?:final\s+)?revised\s+proposals?)(?:\s+(?:due\s+date|due|deadline))?",
+}
+_TZGAP = r"(?:\s+(?:hrs|hours|sharp|prevailing))?\s*(?:,|\|)?\s*"
+_WHEN = (rf"(?:<D>\s*(?:,|\s+at|\s*@|\s*\||\s+-|\s*/)?\s*<T>{_TZGAP}\(?<Z>\)?|<D>\s*\(\s*<T>{_TZGAP}<Z>\s*\)"
+         rf"|<T>{_TZGAP}\(?<Z>\)?\s*(?:,|\s+on)?\s*<D>|<D><T><Z>)(?:\s*\(<Z>\)|\s*,\s*<Z>)?")
+_CUT = r"(?:(?:no|not)\s+later\s+than|NLT|on\s+or\s+before|by|on)"
+_END = r"\s*\|?\s*[.;]?\s*"
+
+
+@functools.lru_cache(maxsize=None)
+def _deadline_forms(kind: str):
+    label = _KIND_LABEL.get(kind)
+    if not label:
+        return ()
+    lab = rf"(?:the\s+)?(?:{label})"
+    return tuple(re.compile(p, re.I) for p in (
+        rf"\|?\s*{lab}\s*(?::|\||-)?\s*(?:{_CUT}\s+)?{_WHEN}{_END}",
+        rf"(?:all\s+)?{lab}\s+(?:are|is|shall\s+be|must\s+be|will\s+be)\s+(?:due|submitted|received|delivered)"
+        rf"(?:\s+(?:electronically|via\s+email))?(?:\s+to\s+<A>)?\s+(?:{_CUT}\s+)?{_WHEN}{_END}",
+        rf"(?:offerors|quoters|vendors|bidders|respondents)\s+(?:must|shall)\s+submit\s+(?:their\s+|all\s+)?{lab}"
+        rf"(?:\s+(?:electronically|via\s+email))?(?:\s+to\s+<A>)?\s+(?:{_CUT}\s+)?{_WHEN}{_END}",
+        *([rf"(?:due\s+date\s*:?\s*<D>\s*,?\s*due\s+time\s*:?\s*<T>{_TZGAP}<Z>|(?:this\s+)?(?:solicitation|RFP|RFQ|IFB)\s+closes"
+           rf"\s+(?:on\s+)?{_WHEN}){_END}"] if kind == "proposal_due" else []),
+    ))
+
+
+def _complete(d: Deadline) -> bool:
+    return bool(d.time and d.timezone) and all(a == "context_truncated" for a in d.ambiguities)
+
+
+def _has_temporal(text: str) -> bool:
+    return bool(DATE_RE.search(text) or TIME_RE.search(text) or TZ_RE.search(text) or MALFORMED_DATE_RE.search(text)
+                or ISO_TIME.search(text) or _unread_datelike(text))
+
+
+def _words_ok(rest: str) -> str | None:
+    """The first word or digit of `rest` that is not allowed, or None."""
+    rest = rest.replace(chr(0x2019), "'")
+    if (dg := re.search(r"\d", rest)):
+        return dg.group(0)
+    for i, w in enumerate(re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?", rest)):
+        if i and w in ("May", "MAY"):
+            return w  # the month, not the verb
+        lw = w.lower()
+        if lw not in ALLOWED_WORDS and not (lw.endswith("'s") and lw[:-2] in ALLOWED_WORDS):
+            return w
+    return None
+
+
+def _addresses(sent: str):
+    for m in ADDRESS.finditer(sent):
+        if not any(TIME_LEXICON.fullmatch(w) or STATUS_LEXICON.fullmatch(w) for w in re.findall(r"[A-Za-z]+", m.group(0))):
+            yield m.span()
+
+
+def _datelike_spans(text: str) -> list[tuple[int, int]]:
+    """Spans of every value `_unread_datelike` would report (the same tests, all of them, read dates included)."""
+    out = []
+    for m in _NUM3.finditer(text):
+        parts = [m.group(1), m.group(3), m.group(4)] + [q for q in m.group(5).split(m.group(2)) if q]
+        if any(re.fullmatch(r"(?:19|20)\d{2,3}", q) for q in parts) or (m.group(2) in "/-" and int(m.group(3)) <= 31 and int(m.group(1)) <= 31):
+            out.append(m.span())
+    return out + [m.span() for m in _DATELIKE.finditer(text)] + [m.span() for m in DATE_RE.finditer(text)]
+
+
+def _plain_offender(sent: str) -> str | None:
+    """For a sentence with no date, time or zone: the first thing that is not recognized, or None."""
+    chars = list(sent)
+    def blank(a: int, b: int):
+        chars[a:b] = " " * (b - a)
+    datelike = _datelike_spans(sent)
+    for rx in BLANK_SPANS:
+        for m in rx.finditer(sent):
+            if not any(x < m.end() and m.start() < y for x, y in datelike):
+                blank(*m.span())
+    for a, b in _addresses(sent):
+        blank(a, b)
+    for rx in PAGE_SPANS:
+        for m in rx.finditer(sent):
+            if _num(m.group(1)):
+                blank(*m.span())
+    for m in DEADLINE_REF.finditer(sent):
+        blank(*m.span())
+    return _words_ok("".join(chars))
+
+
+def _deadline_offender(sent: str, a: int, b: int, d: Deadline) -> str | None:
+    """For a sentence holding one complete deadline at sent[a:b]: None if it matches a fixed form for its kind."""
+    subs = []
+    for m in ISO_TIME.finditer(sent, a, b):
+        subs.append((m.start(), m.end(), "<T><Z>" if m.group(2) else "<T>"))
+    for rx, want, tag in ((DATE_RE, d.date, "<D>"), (TIME_RE, d.time, "<T>"), (TZ_RE, d.timezone, "<Z>")):
+        for m in rx.finditer(sent, a, b):
+            if _norm_ws(m.group(0)) == want:
+                subs.append((m.start(), m.end(), tag))
+    key = _zone_key(d.timezone)
+    for z in TZ_RE.finditer(sent):
+        if _zone_key(z.group(0)) == key or ("/" in d.timezone and z.group(0).lower() == "local time" and z.start() >= b):
+            subs.append((z.start(), z.end(), "<Z>"))
+    subs += [(x, y, "<A>") for x, y in _addresses(sent)]
+    out, pos = [], 0
+    for x, y, tag in sorted(subs):
+        if x >= pos:
+            out.append(sent[pos:x])
+            out.append(tag)
+            pos = y
+    out.append(sent[pos:])
+    form = LEAD_MARKER.sub("", _norm_ws("".join(out)), count=1)
+    if re.search(r"\d", form) or _has_temporal(form.replace("<D>", " ").replace("<T>", " ").replace("<Z>", " ")):
+        return "a digit, or a second date, time or zone"
+    if any(rx.fullmatch(form) for rx in _deadline_forms(d.kind)):
+        return None
+    return f"not a supported deadline form: {form[:80]}"
+
+
+# "All times in this solicitation are Eastern Time.": r6 reports it if it conflicts with a deadline's zone.
+ZONE_FORM = re.compile(r"(?:all\s+)?(?:dates\s+and\s+)?times\s+(?:(?:in|listed\s+in|stated\s+in|shown\s+in)\s+this\s+"
+                       r"(?:solicitation|RFP|RFQ|IFB|document|notice)\s+)?(?:are|is)\s+(?:in\s+)?<Z>\s*\.?", re.I)
+
+
+def _offender(sent: str, own: list, proposal_times: set) -> str | None:
+    """None if the sentence is recognized; otherwise what is not (a word, a digit or a form)."""
+    body = LEAD_MARKER.sub("", sent.strip(), count=1)
+    if not re.search(r"[A-Za-z0-9]", body):
+        return None
+    if any(rx.fullmatch(body) for _, rx in STANDARD_CLAUSES) or any(rx.fullmatch(body) for rx in RULE_SENTENCES):
+        return None
+    if (late := LATE_RESTATE.fullmatch(body)):
+        tz = late.group("tz")
+        if any(t == _time_key(late.group("time")) and (not tz or z == _zone_key(tz)) for t, z in proposal_times):
+            return None
+        return "a late-receipt time that is not the proposal deadline's"
+    if _has_temporal(sent):
+        if not own:
+            form = _norm_ws(TZ_RE.sub("<Z>", body))
+            if ZONE_FORM.fullmatch(form) and not _has_temporal(form.replace("<Z>", " ")) and not re.search(r"\d", form):
+                return None
+        if len(own) != 1:
+            return "a date, time or zone not read as one complete deadline"
+        return _deadline_offender(sent, *own[0])
+    return _plain_offender(sent)
+
+
+def _unrecognized(st: _Statement, ds: list, spans: list) -> list[dict]:
+    """Review items (reason not_recognized) for the sentences of a statement that are not recognized. Called after the
+    zone-statement pass, so a deadline's completeness includes zone conflicts."""
+    items, pos = [], 0
+    proposal_times = {(_time_key(d.time), _zone_key(d.timezone)) for d in ds if d.kind == "proposal_due" and _complete(d)}
+    for sent in iter_sentences(st.text):
+        start, pos = pos, pos + len(sent)
+        inside = [(a - start, b - start, d) for d, (a, b) in zip(ds, spans) if start <= a and b <= pos]
+        if any(not _complete(d) for *_, d in inside):
+            why = "a deadline that is not complete"
+        else:
+            why = _offender(sent, inside, proposal_times)
+        if why:
+            lead = start + len(sent) - len(sent.lstrip())
+            items.append({"line": st.line_at(lead), "end_line": st.line_at(max(start, pos - 1)), "reason": "not_recognized",
+                          "clause": _norm_ws(sent)[:MAX_REVIEW_TEXT], "detail": why[:120]})
+    return items
+
+
 def analyze(text: str) -> Report:
     r = Report()
     lines = ZERO_WIDTH.sub("", text).splitlines()
@@ -1296,6 +1574,7 @@ def analyze(text: str) -> Report:
     capped = []
     revisions: list[dict] = []  # review items: clauses about a deadline that were not resolved (see _deadlines_in)
     zone_statements: list[tuple[int, int, set, set, str]] = []  # (line, end_line, zones stated, zones negated, text)
+    pending: list[tuple[_Statement, list, list]] = []  # r7: statements checked by the allow-list after the zone pass
     for st in _statements(lines):
         pos = 0
         for sent in iter_sentences(st.text):
@@ -1345,10 +1624,13 @@ def analyze(text: str) -> Report:
                     zone_statements.append((st.line_at(start + x), st.line_at(start + max(x, x + len(part.strip()) - 1)),
                                             {k for _, k in zs} - neg, neg, _norm_ws(part)[:MAX_REVIEW_TEXT]))
         adjacent = prev is not None and prev.starts[-1][1] + 1 == st.starts[0][1] and len(prev.text) <= 200
+        got, spans = [], []
         if len(r.deadlines) < MAX_DEADLINES:
-            r.deadlines += _deadlines_in(st, prev.text if adjacent else "", MAX_DEADLINES - len(r.deadlines), revisions)
+            got = _deadlines_in(st, prev.text if adjacent else "", MAX_DEADLINES - len(r.deadlines), revisions, spans)
+            r.deadlines += got
             if len(r.deadlines) >= MAX_DEADLINES:
                 capped.append(f"More than {MAX_DEADLINES} dated deadlines; extraction stopped at line {st.line_at(0)}. Check the rest of the document.")
+        pending.append((st, got, spans))
         if len(r.requirements) < MAX_REQUIREMENTS:
             r.requirements += _requirements_in(st)
             if len(r.requirements) >= MAX_REQUIREMENTS:
@@ -1462,12 +1744,15 @@ def analyze(text: str) -> Report:
         if len(zone_statements) > MAX_ZONE_STATEMENTS:
             zl, ze, *_rest, ztext = zone_statements[MAX_ZONE_STATEMENTS]
             revisions.append({"line": zl, "end_line": ze, "reason": "zone_statement", "clause": ztext})  # holds all
+    for st_, got_, spans_ in pending:  # r7 allow-list, after the zone pass so a deadline's completeness includes it
+        revisions += _unrecognized(st_, got_, spans_)
     for i, raw in enumerate(lines, 1):  # unsupported date forms are review items too, with their exact text
         near = MALFORMED_NEAR_DEADLINE_RE.finditer(raw) if STRONG_TRIGGER.search(raw) else ()
         if next(iter([*MALFORMED_DATE_RE.finditer(raw), *near]), None):
             revisions.append({"line": i, "end_line": i, "reason": "unsupported_date_form", "clause": _norm_ws(raw)[:MAX_REVIEW_TEXT]})
     seen_items, items = set(), []
-    for it in sorted(revisions, key=lambda x: (x["line"], x["end_line"], x["reason"])):
+    # r6's specific reasons are listed before the r7 allow-list items, so the listing cap never pushes them out.
+    for it in sorted(revisions, key=lambda x: (x["reason"] == "not_recognized", x["line"], x["end_line"], x["reason"])):
         if (it["line"], it["reason"]) not in seen_items:
             seen_items.add((it["line"], it["reason"]))
             items.append(it)
@@ -1482,15 +1767,21 @@ def analyze(text: str) -> Report:
                 "time_without_date": "names a deadline and a clock time but no date that was read; confirm the date.",
                 "zone_statement": "sets the zone for the document's times, which conflicts with a deadline's zone or rules one out.",
                 "unsupported_date_form": "has a date-like value in a form this tool does not read.",
-                "unread_date_value": "names a deadline and a date-like value this tool does not read; confirm the date."}
+                "unread_date_value": "names a deadline and a date-like value this tool does not read; confirm the date.",
+                "not_recognized": "is not in a form this tool recognizes (the allow-list); read it in the source. It may change any "
+                                  "deadline."}
     for it in items[:MAX_MALFORMED_WARNINGS]:
         exact = "\n".join(source[it["line"] - 1:it["end_line"]])
         it["text"] = exact[:MAX_REVIEW_TEXT] + (" [...]" if len(exact) > MAX_REVIEW_TEXT else "")
-        r.needs_review.append({k: it[k] for k in ("line", "end_line", "reason", "text")})
+        r.needs_review.append({k: it[k] for k in ("line", "end_line", "reason", "text", "detail") if k in it})
         if it["reason"] != "unsupported_date_form":  # those already have their own warning above
             r.warnings.append(f"Line {it['line']} {MESSAGES[it['reason']]}")
-    if len(items) > MAX_MALFORMED_WARNINGS:
-        r.warnings.append(f"{len(items) - MAX_MALFORMED_WARNINGS} more sentences about a deadline are unresolved and not listed.")
+    if len(items) > MAX_MALFORMED_WARNINGS:  # r6's unresolved items and the r7 allow-list's items are counted apart
+        rest = items[MAX_MALFORMED_WARNINGS:]
+        if (n := sum(it["reason"] != "not_recognized" for it in rest)):
+            r.warnings.append(f"{n} more sentences about a deadline are unresolved and not listed.")
+        if (n := sum(it["reason"] == "not_recognized" for it in rest)):
+            r.warnings.append(f"{n} more sentences not in a recognized form are not listed.")
     # A deadline is actionable only if it is complete and unambiguous, no other value of its kind conflicts with it, and
     # no unresolved item may change it (an item that names no kind may change any deadline).
     conflicting = {k for k, ds in by_kind.items() if len({_norm_key(d) for d in ds}) > 1}
@@ -1502,24 +1793,26 @@ def analyze(text: str) -> Report:
     # A generic deadline word ("the deadline", "the closing date") may mean the proposal deadline; a cancelled or draft
     # solicitation holds every deadline.
     def _item_kinds(it):
-        if it["reason"] in ("solicitation_cancelled_or_draft", "schedule_changed"):
+        if it["reason"] in ("solicitation_cancelled_or_draft", "schedule_changed", "not_recognized"):
             return set()
         ks = {k for k, rx in KIND_RES if rx.search(it["text"])}
         return ks | {"proposal_due"} if ks and GENERIC_DEADLINE.search(it["text"]) else ks
     item_kinds = [(it, _item_kinds(it)) for it in r.needs_review
                   if it["reason"] != "unsupported_date_form" or STRONG_TRIGGER.search(it["text"]) or SUBMIT_ANY.search(it["text"])]
+    unrecognized = sum(it["reason"] == "not_recognized" for it in items)
     for d in r.deadlines:
         why = [a for a in d.ambiguities if a != "context_truncated"]
         if d.kind in conflicting:
             why.append(f"conflicting_{d.kind}")
         if d.kind in withdrawn and "negated_or_withdrawn" not in d.ambiguities:
             why.append(f"withdrawn_{d.kind}")
-        why += [f"line_{it['line']}:{it['reason']}" for it, ks in item_kinds if not ks or d.kind in ks
-                or ("proposal_due" in ks and d.kind == "revised_proposal_due")]
+        why += [f"line_{it['line']}:{it['reason']}" for it, ks in item_kinds if it["reason"] != "not_recognized"
+                and (not ks or d.kind in ks or ("proposal_due" in ks and d.kind == "revised_proposal_due"))]
+        tail = [f"not_recognized:{unrecognized}"] if unrecognized else []  # r7: one code for every allow-list item
         if len(items) > MAX_MALFORMED_WARNINGS:  # an item past the listing cap may change any deadline
-            why.append("unlisted_review_items")
-        if why:
-            d.status, d.review = "needs_review", why[:MAX_OTHER_TIMES * 2]
+            tail.append("unlisted_review_items")
+        if why or tail:
+            d.status, d.review = "needs_review", why[:MAX_OTHER_TIMES * 2 - len(tail)] + tail
     if "\ufffd" in text:
         r.warnings.append("Input contains U+FFFD replacement characters (undecodable bytes or a lossy conversion); some text may be missing.")
     if not r.page_limits:

@@ -12,12 +12,13 @@ from .core import analyze, read_document, read_stdin_bounded
 
 def render_text(rep) -> str:
     out = [f"OUTCOME: {'READ' if rep.outcome == 'read' else 'NEEDS REVIEW'}"
-           + ("" if rep.outcome == "read" else f" ({len(rep.needs_review)} unresolved deadline sentence(s), {len(rep.warnings)} warning(s))")]
+           + ("" if rep.outcome == "read" else f" ({len(rep.needs_review)} sentence(s) to review, {len(rep.warnings)} warning(s))")]
     if rep.needs_review:
-        out.append("NEEDS REVIEW (read these in the source; no deadline was read from them)")
+        out.append("NEEDS REVIEW (read these in the source)")
         for n in rep.needs_review:
             where = f"line {n['line']}" + (f"-{n['end_line']}" if n["end_line"] != n["line"] else "")
-            out.append(f"  ? [{n['reason']}] {where}: " + n["text"].replace("\n", " / "))
+            why = f"  (not recognized: {n['detail']})" if n.get("detail") else ""
+            out.append(f"  ? [{n['reason']}] {where}: " + n["text"].replace("\n", " / ") + why)
     out.append("DEADLINES")
     out += [f"  [{d.kind}] {d.date} {d.time or '(no time)'} {d.timezone or '(no timezone)'}  (line {d.line})"
             + (f"  CHECK: {', '.join(d.ambiguities)}" if d.ambiguities else "")
@@ -58,9 +59,9 @@ def main(argv=None) -> int:
     ap.add_argument("file", help="solicitation .pdf or .txt/.md ('-' for stdin)")
     ap.add_argument("--format", "-f", choices=["text", "json", "csv", "md"], default="text")
     ap.add_argument("--strict", action="store_true",
-                    help="exit 2 unless the outcome is READ (no check fired and every deadline is actionable); exit 2 means "
-                         "NEEDS REVIEW. READ means only that none of the implemented checks fired (see README, 'What --strict "
-                         "means'); it does not prove every deadline was found or is correct")
+                    help="exit 2 unless the outcome is READ (every sentence is in a recognized form, no check fired and every "
+                         "deadline is actionable); exit 2 means NEEDS REVIEW, the expected result for most real solicitations "
+                         "(see README, 'What --strict means'); READ does not prove every deadline was found or is correct")
     ap.add_argument("--version", action="version", version=__version__)
     a = ap.parse_args(argv)
     try:

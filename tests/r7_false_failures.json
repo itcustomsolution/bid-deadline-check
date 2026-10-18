@@ -1,0 +1,652 @@
+{
+ "about": "r7 (owner's choice B): clean texts that earlier rounds expected to read READ and that the allow-list now sends to review. Each is a strict expected failure (tests/conftest.py) that holds only while the test fails with an AssertionError and records exactly these (line, detail) not_recognized items. Not edited to pass; a flip caused only by allowed words is a bug, not an entry here.",
+ "false_failures": [
+  {
+   "nodeid": "tests/test_r2_audit.py::test_a_time_without_change_wording_is_not_a_revision[Late offers are handled within 120 hours of the deadline.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r2_audit.py::test_a_time_without_change_wording_is_not_a_revision[The reading room is open from 9:00 AM to 5:00 PM ET.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r2_audit.py::test_r2_dl_1_other_dates_in_a_plain_deadline_sentence_are_not_flagged[Amendment 0004 issued October 2, 2026 at 5:00 PM ET sets the proposal due date to November 5, 2026 at 5:00 PM ET.]",
+   "not_recognized": [
+    [
+     3,
+     "a digit, or a second date, time or zone"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r2_audit.py::test_r2_dl_1_other_dates_in_a_plain_deadline_sentence_are_not_flagged[Proposals due November 5, 2026 at 5:00 PM ET for performance from January 1, 2027 to December 31, 2027.]",
+   "not_recognized": [
+    [
+     3,
+     "a digit, or a second date, time or zone"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r2_audit.py::test_r2_dl_2_issue_words_before_the_deadline_words_are_not_flagged",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: As amended, proposals are due <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r2_audit.py::test_r2_dl_2_issued_then_sets_the_due_date_control",
+   "not_recognized": [
+    [
+     3,
+     "a digit, or a second date, time or zone"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r3_dl_1_controls_stay_clean[No alteration to the closing time is authorized.]",
+   "not_recognized": [
+    [
+     4,
+     "No"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r3_dl_1_controls_stay_clean[Offerors may adjust their technical approach before the proposal due date.]",
+   "not_recognized": [
+    [
+     4,
+     "adjust"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r3_dl_1_controls_stay_clean[Pricing adjustments are due with the proposal.]",
+   "not_recognized": [
+    [
+     4,
+     "adjustments"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r3_dl_1_controls_stay_clean[The proposal deadline is unchanged at November 5, 2026 at 5:00 PM ET.]",
+   "not_recognized": [
+    [
+     4,
+     "not a supported deadline form: The proposal deadline is unchanged at <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r3_dl_2_submission_controls_stay_clean[Amendment 0004 issued October 2, 2026 at 5:00 PM ET sets the proposal due date to November 12, 2026 at 5:00 PM ET.-November 12, 2026]",
+   "not_recognized": [
+    [
+     3,
+     "a digit, or a second date, time or zone"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r3_dl_2_submission_controls_stay_clean[Proposals are due and must be delivered by November 5, 2026 at 5:00 PM ET.-November 5, 2026]",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: Proposals are due and must be delivered by <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r3_dl_2_submission_controls_stay_clean[Proposals are due, signed and dated, by November 5, 2026 at 5:00 PM ET.-November 5, 2026]",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: Proposals are due, signed and dated, by <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r3_dl_3_zone_controls_stay_clean[Proposals due 2026-11-05T17:00:00-04:00, as stated in Block 8.]",
+   "not_recognized": [
+    [
+     3,
+     "a digit, or a second date, time or zone"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r4_review_announcement_words_in_ordinary_text_stay_clean[Hand-carried proposals due under this RFQ must have been delivered to the mailroom by November 5, 2026 at 5:00 PM ET.-November 5, 2026]",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: Hand-carried proposals due under this RFQ must have been delivered to the mailro"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r4_review_announcement_words_in_ordinary_text_stay_clean[Proposals are due November 5, 2026 at 5:00 PM ET; bid tabulations will be made public after the bid due date.-November 5, 2026]",
+   "not_recognized": [
+    [
+     3,
+     "tabulations"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r4_review_announcement_words_in_ordinary_text_stay_clean[The bid due date, as advertised in the legal notice, is November 5, 2026 at 5:00 PM ET.-November 5, 2026]",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: The bid due date, as advertised in the legal notice, is <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r4_review_slides_and_bring_forward_controls_stay_clean[Offerors are encouraged to bring forward any questions well before the question deadline.]",
+   "not_recognized": [
+    [
+     4,
+     "encouraged"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r4_review_slides_and_bring_forward_controls_stay_clean[Oral presentations are limited to 15 slides and will be scheduled after the closing date.]",
+   "not_recognized": [
+    [
+     4,
+     "1"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r4_review_slides_and_bring_forward_controls_stay_clean[Presentation slides must be submitted with the proposal by the proposal due date.]",
+   "not_recognized": [
+    [
+     4,
+     "slides"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r4_review_slides_and_bring_forward_controls_stay_clean[Presentation slides two through five must show the schedule; slides are due with the proposal.]",
+   "not_recognized": [
+    [
+     4,
+     "slides"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r4_review_slides_and_bring_forward_controls_stay_clean[Registration fees follow a sliding scale and are due by the registration deadline.]",
+   "not_recognized": [
+    [
+     4,
+     "Registration"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r4_review_slides_and_bring_forward_controls_stay_clean[Sliding doors at the loading dock are locked after the closing time.]",
+   "not_recognized": [
+    [
+     4,
+     "Sliding"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_audit.py::test_r4_review_slides_and_bring_forward_controls_stay_clean[Submit presentation slides by the proposal due date.]",
+   "not_recognized": [
+    [
+     4,
+     "slides"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P10_plain_previously_registered]",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: Offerors previously registered must submit proposals by <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P11_original_and_copies]",
+   "not_recognized": [
+    [
+     4,
+     "one"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P12_period_of_performance]",
+   "not_recognized": [
+    [
+     3,
+     "a digit, or a second date, time or zone"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P13_issued_then_sets]",
+   "not_recognized": [
+    [
+     3,
+     "a digit, or a second date, time or zone"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P14_acknowledge_amendments]",
+   "not_recognized": [
+    [
+     4,
+     "acknowledge"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P15_method_change_other_clause]",
+   "not_recognized": [
+    [
+     3,
+     "method"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P17_as_amended]",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: As amended, proposals are due <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P1_as_previously_announced]",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: As previously announced, proposals are due <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P2_now_accepting]",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: The Government is now accepting proposals due by <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P3_registration_now_open]",
+   "not_recognized": [
+    [
+     4,
+     "not a supported deadline form: Registration is now open and closes <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P6_extension_request_from]",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: Offerors requesting an extension from the Contracting Officer must submit propos"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P7_signed_and_dated]",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: Proposals are due, signed and dated, by <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P8_new_offerors_register]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r3_review.py::test_ordinary_text_still_reads_cleanly[P9_part_number_month]",
+   "not_recognized": [
+    [
+     4,
+     "4"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_kr5_02_identifiers_and_lists_are_not_malformed_dates[Bid No. 2025-12-1 covers road salt.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_kr5_02_identifiers_and_lists_are_not_malformed_dates[Install IntelliJ IDEA 2024.1.2 or later.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_kr5_02_identifiers_and_lists_are_not_malformed_dates[Oral presentations are scheduled for May 4, 11 and 18.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_kr5_02_identifiers_and_lists_are_not_malformed_dates[Paragraph L.3.2.2019 applies.]",
+   "not_recognized": [
+    [
+     4,
+     "9"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_kr5_02_identifiers_and_lists_are_not_malformed_dates[Refer to RFP 2026-1-05 for scope.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_kr5_02_identifiers_and_lists_are_not_malformed_dates[Site visits are held on November 3, 10 and 17, 2026.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_kr5_02_identifiers_and_lists_are_not_malformed_dates[Solicitation No. 2026-100-001 applies.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_kr5_02_identifiers_and_lists_are_not_malformed_dates[Statute 2001.3.1 applies.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_kr5_02_identifiers_and_lists_are_not_malformed_dates[Tableau v2023.3.1 is required.]",
+   "not_recognized": [
+    [
+     4,
+     "2"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_kr5_02_identifiers_and_lists_are_not_malformed_dates[Use release 2024.10.1.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_r4_dl_2_part_and_section_numbers_stay_clean[Proposals must follow Section 3.4.1 and FAR 52.212-1.]",
+   "not_recognized": [
+    [
+     4,
+     "follow"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_r4_dl_2_part_and_section_numbers_stay_clean[Refer to part number 2026-1145-AB and drawing 12.11.B.]",
+   "not_recognized": [
+    [
+     4,
+     "2"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_r4_dl_2_part_and_section_numbers_stay_clean[See paragraphs 1.2.3 through 1.2.10 of the statement of work.]",
+   "not_recognized": [
+    [
+     4,
+     "1"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r4_audit.py::test_r4_dl_3_offset_before_sentence_end_stays_clean[Proposals due November 5, 2026 at 17:00 UTC-04:00. 5 copies are required.]",
+   "not_recognized": [
+    [
+     3,
+     "5"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_holdout_informed.py::test_r6b_controls_stay_read[Proposals due November 5, 2026 at 5:00 PM ET.\\nBid Item 3 (extended warranty) is cancelled from the schedule.]",
+   "not_recognized": [
+    [
+     4,
+     "extended"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_holdout_informed.py::test_r6b_controls_stay_read[Proposals due November 5, 2026 at 5:00 PM ET.\\nIf this solicitation is cancelled, all offerors will be notified.]",
+   "not_recognized": [
+    [
+     4,
+     "If"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_holdout_informed.py::test_r6b_controls_stay_read[Proposals due November 5, 2026 at 5:00 PM ET.\\nSome vendors asked whether the RFP was withdrawn; it was not.]",
+   "not_recognized": [
+    [
+     4,
+     "Some"
+    ],
+    [
+     4,
+     "was"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_holdout_informed.py::test_r6b_controls_stay_read[Proposals due November 5, 2026 at 5:00 PM ET.\\nThe State reserves the right to cancel this solicitation at any time.]",
+   "not_recognized": [
+    [
+     4,
+     "State"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_holdout_informed.py::test_r6b_controls_stay_read[Proposals due November 5, 2026 at 5:00 PM ET.\\nThe site visit is cancelled.]",
+   "not_recognized": [
+    [
+     4,
+     "visit"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_holdout_informed.py::test_r6b_controls_stay_read[Proposals: briefing 9:00 AM ET; due November 5, 2026 at 5:00 PM ET.]",
+   "not_recognized": [
+    [
+     3,
+     "a date, time or zone not read as one complete deadline"
+    ],
+    [
+     3,
+     "not a supported deadline form: due <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_holdout_informed.py::test_r6b_hold_wording_applies_to_the_deadline_it_names",
+   "not_recognized": [
+    [
+     4,
+     "a deadline that is not complete"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_holdout_informed.py::test_r6b_no_change_wording_reads",
+   "not_recognized": [
+    [
+     4,
+     "There"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_review.py::test_r6_controls_stay_read[As previously announced, proposals are due November 5, 2026 at 5:00 PM ET.]",
+   "not_recognized": [
+    [
+     3,
+     "not a supported deadline form: As previously announced, proposals are due <D> at <T> <Z>."
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_review.py::test_r6_controls_stay_read[Proposals due November 5, 2026 at 5:00 PM ET.\\nOral presentations are limited to 15 slides and will be scheduled after the closing date.]",
+   "not_recognized": [
+    [
+     4,
+     "1"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_review.py::test_r6_controls_stay_read[Proposals due November 5, 2026 at 5:00 PM ET.\\nPresentation slides must be submitted with the proposal by the proposal due date.]",
+   "not_recognized": [
+    [
+     4,
+     "slides"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_review_round1.py::test_r6r1_controls_stay_read[Proposals: briefing at 9:00 AM ET, due November 5, 2026 at 5:00 PM ET.]",
+   "not_recognized": [
+    [
+     3,
+     "a digit, or a second date, time or zone"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_r6_review_round2.py::test_r6r2_an_award_date_is_its_own_item_and_leaves_the_proposal_deadline_actionable",
+   "not_recognized": [
+    [
+     4,
+     "a deadline that is not complete"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_reaudit.py::test_kr2_03_a_heading_and_a_blank_line_do_not_cut_the_next_requirement[Point of Contact:\\nJane Doe, Contracting Officer\\n\\nThe offeror shall direct all questions to the point of contact.]",
+   "not_recognized": [
+    [
+     4,
+     "Jane"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_reaudit.py::test_kr2_03_a_heading_and_a_blank_line_do_not_cut_the_next_requirement[Section L - Instructions to Offerors\\n\\nThe offeror shall submit its proposal in three volumes.]",
+   "not_recognized": [
+    [
+     6,
+     "three"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_reaudit.py::test_kr2_07_a_period_of_performance_change_is_not_a_deadline",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_reaudit.py::test_r2c_r1_a_term_extension_without_a_deadline_word_is_not_a_replacement[The contract period may be extended to September 30, 2028 by exercise of options.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_reaudit.py::test_r2c_r1_a_term_extension_without_a_deadline_word_is_not_a_replacement[The period of performance may be extended to December 31, 2027.]",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  },
+  {
+   "nodeid": "tests/test_reaudit.py::test_rbd1_period_of_performance_range_is_not_an_amendment",
+   "not_recognized": [
+    [
+     4,
+     "a date, time or zone not read as one complete deadline"
+    ]
+   ]
+  }
+ ]
+}

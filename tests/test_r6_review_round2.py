@@ -149,7 +149,16 @@ KNOWN_MISSES = [  # unresolved: each reads cleanly although a careful reader wou
 ]
 
 
+def held_on_probe(text):
+    """As held(), and a review item lies on the probe's own lines (after BASE, and after OLD when the text starts with it),
+    so an unrecognized line elsewhere cannot make the test pass (r7 plan review, finding 4)."""
+    rc, rep = strict_json(BASE + text)
+    first = BASE.count("\n") + (1 if text.startswith(OLD) else 0) + 1
+    last = (BASE + text).rstrip("\n").count("\n") + 1
+    return held(text) and any(n["line"] <= last and n["end_line"] >= first for n in rep["needs_review"])
+
+
 @pytest.mark.parametrize("text", KNOWN_MISSES)
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="known miss after two corrective review rounds; recorded, not waived (README known misses)")
-def test_r6r2_known_misses_are_still_missed(text):
-    assert held(text)
+def test_r6r2_known_misses_are_caught_by_the_r7_allow_list(text):
+    # r6 recorded these as strict expected failures (they read cleanly on 5df6397); r7's allow-list must catch each one.
+    assert held_on_probe(text)

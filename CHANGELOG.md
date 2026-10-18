@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.0rc7 (unreleased candidate, 2026-10-18; not published; 0.2.0rc6 and earlier are frozen)
+
+**Breaking:** READ is allow-list based (the owner's choice B). Every sentence must be positively recognized, or it is
+a review item (`not_recognized`, with a `detail`) that holds every deadline, so `--strict` exits 2 on almost every real
+solicitation.
+
+- A sentence holding a date, time or zone is recognized only if it holds one complete deadline in a fixed form whose
+  label names that deadline's kind; any other sentence only if, with references, page limits, format values, list
+  markers and addresses set aside, no digit is left and every word is in a closed vocabulary that cannot say when,
+  change, cancel, negate or set a condition. Standard FAR receipt clauses, the checked SF-30 "is not extended" line, a
+  few fixed rule sentences, a matching late-receipt rule and an "All times are <zone>" statement are recognized whole.
+- The 41 wordings 0.2.0rc6 recorded as read cleanly (40 in its tests, one in its release notes) are caught and are
+  ordinary tests, each required to produce a review item on its own lines.
+- r6's specific reasons are listed before allow-list items, overflow counts are reported separately, and a deadline
+  carries one `not_recognized:N` code after its other reasons.
+- 71 earlier test texts that read cleanly now need review; they are strict expected failures listed with their exact
+  items in `tests/r7_false_failures.json` (`tests/conftest.py` fails them if the item changes). Their text and
+  assertions are unchanged.
+
 ## 0.2.0rc6 (unreleased candidate, 2026-10-17; not published; 0.2.0rc5 and earlier were audited and are frozen)
 
 **Breaking:** every report has an `outcome` (`read` or `needs_review`) and a `needs_review` list; deadlines carry
