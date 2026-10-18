@@ -19,8 +19,17 @@ starts with an `OUTCOME:` line.
   publicized", "were notified" and similar announcement wording before a date is `issue_date_possible`.
 - Unchanged FAR 52.212-1 and 52.215-1 receipt clauses are not reviewed when they match the published text exactly;
   any alteration is reviewed.
+- Second change, informed by the one run of the first held-out set on the first r6 commit (so that set is no longer
+  independent for this change): a cancelled, withdrawn, paused or draft solicitation holds every deadline
+  (`solicitation_cancelled_or_draft`); corrections ("should read", "is corrected to") are reviewed; "on hold", "paused",
+  TBA schedules and TBD table rows are reviewed; a deadline quoted from or labeled as an earlier text is
+  `quoted_or_former`; a time paired with another zone before the date is `other_time`; zone statements that change the
+  zone or use "Time zone for all deadlines:" are read; a kind withdrawn in one place holds the same cutoff elsewhere;
+  generic deadline words in a review item hold the proposal deadline; hard copies name a proposal submission. A
+  directly negated change verb is no longer a change, and more page-limit phrasings are read.
 - Evaluation: the development cases used while writing this change are frozen with labels, reasons and sources,
-  and an independently prepared held-out set was sealed before any run; results are in the release package. The
+  and an independently prepared held-out set was sealed before any run, then a second one before the final run; results
+  are in the release package. The
   earlier candidates were tuned on the cases they were evaluated on, and this candidate was developed on the
   development set, so its development results are not an independent measure.
 

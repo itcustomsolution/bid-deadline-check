@@ -62,11 +62,13 @@ implemented checks fired:
 - every extracted deadline has a valid calendar date in 1900 to 2100 whose weekday, if written, matches; a clock time
   (or "noon"); and one valid zone (an IANA name the zone database knows, or a UTC offset from UTC-12:00 to
   UTC+14:00), all bound to the same clause, with no "EOD", "midnight" or close-of-business marker, no two-digit year
-  and no second, different zone written for the same time;
-- no deadline is flagged as withdrawn or superseded, as replacing an earlier date, as possibly an issue or
+  and no second, different zone written for the same time (including "3:00 PM PST / 3:00 PM EST");
+- no deadline is flagged as withdrawn, superseded, paused or on hold, as replacing an earlier date, as quoted from
+  or labeled as an earlier text ("the RFP stated:", "former deadline", "Original Proposal Due"), as possibly an issue or
   announcement date, as sharing its sentence with another clock time or an unread date, as taken from a "received
   after" clause, or as of uncertain kind;
-- no kind of deadline has two different values;
+- no kind of deadline has two different values, and none is withdrawn in one place and written as current in
+  another;
 - no sentence about a deadline was left unresolved (the review items below), and no unsupported date form was found;
 - every deadline is actionable; and
 - the input decoded without replacement characters, and extraction did not stop at its per-document limits.
@@ -74,20 +76,22 @@ implemented checks fired:
 NEEDS REVIEW lists each unresolved candidate in `needs_review` with its first and last line, a reason code and its
 exact source text (up to 600 characters). Each deadline carries `status`: `actionable`, or `needs_review` with the
 reasons in `review`. A deadline is held (not actionable as stated) when it has any of the flags above, when another
-value of its kind conflicts with it, or when an unresolved item names its kind or names no kind at all, so a
+value of its kind conflicts with it or is withdrawn, or when an unresolved item names its kind, names no kind at all,
+or uses a generic deadline word ("the deadline", "the closing date"), so a
 recognized old cutoff is never presented as actionable while a change to it is unresolved. The text output prints
 these as "NOT ACTIONABLE AS STATED"; the checklist (`md`, `csv`) lists the review items first.
 
 | Reason code | A sentence that names a deadline and ... |
 |---|---|
-| `change_not_read` | changes it (a change verb, an imperative such as "Alter the closing time", "reopens", "one week later than stated", a checked SF-30 "[X] is extended") with no replacement date read |
+| `solicitation_cancelled_or_draft` | (any sentence) cancels, withdraws, suspends or puts on hold the whole solicitation, or marks it as a draft, notional or not yet requested; every deadline is held. A question or condition ("whether", "if", "may", "the right to") does not count |
+| `change_not_read` | changes it (a change verb that is not directly negated, an imperative such as "Alter the closing time", "reopens", "one week later than stated", a checked SF-30 "[X] is extended") with no replacement date read; also any sentence that corrects an earlier text ("should read", "is corrected to", "typographical error") and gives a date or time |
 | `deadline_cancelled_or_suspended` | cancels, withdraws, rescinds, revokes, suspends or postpones it |
-| `deadline_to_be_determined` | says it is TBD, to be determined, or will be set later |
+| `deadline_to_be_determined` | says it is TBD, to be determined, or will be set later (also in a table row, "Revised Proposal Due \| TBD"); also any sentence saying the schedule, timeline or dates are TBD or TBA |
 | `deadline_negated` | says it is no longer due or no longer applies |
 | `time_without_date` | gives a clock time but no date that was read (a restatement of a time already read in the same statement is not one) |
 | `date_not_read_as_deadline` | contains a date that was not read as a deadline and is not an issue date |
 | `unread_date_value` | contains a date-like value this tool does not read ("2026.11.5", "20261112", "2026 11 12") |
-| `zone_statement` | sets the zone for all times ("All times are Central Time, not Eastern Time") in a way that conflicts with a deadline's zone or rules one out |
+| `zone_statement` | sets or changes the zone for all times ("All times are Central Time, not Eastern Time", "All times are changed from Eastern Time to Central Time", "Time zone for all deadlines: Mountain") in a way that conflicts with a deadline's zone or rules one out |
 | `unsupported_date_form` | (any line) holds one of the screened malformed forms listed below |
 
 What names a deadline: the deadline words "due", "deadline", "closing", "close date", "cut-off", "no later than",
@@ -138,13 +142,20 @@ safety gate. Read the solicitation and every amendment yourself.
   scanned PDFs without a text layer, and tables whose cells are split across lines in an order that separates a label
   from its date.
 
+A change verb directly negated ("is not changed", "will not be extended", "There is no change to the closing date") is
+not a change, unless the negation leaves room for one ("will not be extended beyond <date>"). Hard, paper, printed
+and physical copies name a proposal submission, so a separate hard-copy deadline conflicts with the electronic one.
+
 Known false failures (NEEDS REVIEW although nothing is wrong): the same time restated in another zone or notation
 ("5:00 PM ET (2:00 PM PT)", "17:00 UTC-4 (ET)"); office hours in a deadline's sentence; numbers written like a
 screened date form (`Version 1.2.2026`, "In May, 12 2026 vehicles were inspected", `2026-111-05`, `JUN-12-1234`, and
 on a deadline line `RFP 2026-1-05`); a validity or performance-period change in a sentence that names a deadline;
 hedged, conditional or hypothetical sentences that name a deadline and use change wording ("Requests for extension
 of the proposal due date will not be granted", "Proposals may be modified or withdrawn at any time before the closing
-date"); a standard clause in any wording other than the published one; and an announcement verb in a deadline's
+date", "The County may extend the deadline by addendum"); a zone written as "Eastern" alone, "Arizona time" or
+"Atlantic Standard Time" (no zone is read); a deadline with no zone in a document whose zone statement sets one (the
+statement is not applied); a four-digit time without "hours" ("by 1600 CST"); dates written in words or as
+`14-JAN-2027`; a notice of intent to bid or a second round of questions read as a second deadline of the same kind; a standard clause in any wording other than the published one; and an announcement verb in a deadline's
 clause ("Questions are due as communicated..." stays READ only because "as" marks a reference).
 
 Known misses (READ although a careful reader would not act): a change sentence that uses none of the deadline words
@@ -170,11 +181,12 @@ rows = report.checklist()   # list of dicts: id, category, item, line, done
 `Report.outcome` is `read` or `needs_review` (see "What `--strict` means"); `Report.needs_review` lists the
 unresolved sentences. `Deadline.status` is `actionable` or `needs_review`, and `Deadline.review` gives the reasons:
 its own ambiguity codes, `conflicting_<kind>`, `line_<n>:<reason>` for a review item that may change it, and
-`unlisted_review_items` when more than 50 items were found.
+`withdrawn_<kind>` when the same kind is withdrawn elsewhere, and `unlisted_review_items` when more than 50 items
+were found.
 
 `Deadline` has `kind`, `date`, `time`, `timezone`, `line`, `text` (the clause around the date),
 `end_line` and `ambiguities` (codes: `no_time`, `no_timezone`, `time_marker:<text>`, `invalid_date`,
-`invalid_time`, `implausible_year` (outside 1900 to 2100), `weekday_mismatch`, `two_digit_year`, `negated_or_withdrawn`, `replaces_earlier_date` (the new date of an
+`invalid_time`, `quoted_or_former`, `implausible_year` (outside 1900 to 2100), `weekday_mismatch`, `two_digit_year`, `negated_or_withdrawn`, `replaces_earlier_date` (the new date of an
 "extended/changed/moved from ... to ..." or "... it is now <date>" amendment), `issue_date_possible` (an issue,
 amendment or announcement word, such as "was publicized" or "was delivered", sits between the deadline word and the
 date), `date_glued_to_text` (letters follow the date with no space, as in `2026at`), `timezone_glued_to_text`
@@ -213,7 +225,7 @@ short or is in an unsupported form, such as `UTC+05:30:15`), `zone_invalid`, `zo
 - Limits: files and stdin over 50 MB are refused. At most 2000 deadlines and 10000 requirements are
   extracted per document; a warning says where extraction stopped. At most 50 unresolved sentences are listed, each with up
   to 600 characters of its source text; a warning counts the rest. Measured on macOS (arm64) for this
-  candidate on inputs up to 1 MB, analysis takes up to about 2.3 s per MB of text and grows linearly
+  candidate on inputs up to 1 MB, analysis takes up to about 3 s per MB of text and grows linearly
   (about 31 to 38 MB peak memory at 1 MB). Larger inputs were not measured for this candidate; the previous
   candidate needed 456 MB and 11 s for 20 MB of dense dated text and 321 MB and 37 s for 20 MB of one-word
   lines, so a 50 MB input should be expected to need more than a gigabyte and minutes.
