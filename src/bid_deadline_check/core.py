@@ -325,16 +325,11 @@ QUOTED_BEFORE = re.compile(r"\b(?:stated|states|said|says|indicated|showed|shows
                            r"|\b(?:former|original|old|previous|prior|superseded|earlier)\s+(?:\w+\s+){0,2}?(?:due\s+dates?|deadlines?|closing(?:\s+dates?)?|due)\b", re.I)
 # "The proposal due date is no longer <date>", "... is not <date>, as previously stated": the date itself is negated.
 DATE_NEGATED = re.compile(r"\b(?:is|are|was|were|will\s+be|shall\s+be)\s+(?:no\s+longer|not|never)\s+(?:on\s+)?$", re.I)
-# A change verb directly negated ("is not changed", "will not be extended", "no change to") is not a change, unless the
-# negation leaves room for one ("will not be extended beyond <date>").
-NEGATED_CHANGE = re.compile(r"\b(?:not|no|never)\s+(?:be\s+|been\s+|being\s+)?(?:further\s+|yet\s+|again\s+)?$", re.I)
 PAIRED_TIME = re.compile(r"\s*(?:,|/|\bor\b|\band\b|\||\()\s*(?=\d)", re.I)
 EVENT_BEFORE = re.compile(r"\b(?:briefing|conference|site\s+visit|visit|meeting|conference\s+call|session|webinar|walk-?through|tour|opening|interview"
                           r"|presentation|demonstration|orals?|debriefing|industry\s+day)s?\b[^.;]{0,25}$", re.I)
 CUTOFF_BEFORE = re.compile(r"\b(?:by|before|until|no\s+later\s+than|not\s+later\s+than|NLT|prior\s+to|on\s+or\s+before)\s*$", re.I)  # "3:00 PM PST / 3:00 PM EST"
-OPEN_LIMIT_AFTER = re.compile(r"\s*(?:beyond|past|after|later\s+than|unless|by\s+(?:more|up)\s+(?:than|to)|more\s+than|up\s+to|except|until)\b", re.I)
 # Words that name a deadline without naming its kind: an item using one may change the proposal deadline.
-CONTRAST = re.compile(r"\b(?:but|instead|rather|however|except|only|now|new|later|earlier|sooner|moved|until)\b|;", re.I)
 NOW_TALK = re.compile(r"\b(?:is|are)\s+now\b|\bnow\s+(?:due|set|falls?|is|are)\b", re.I)
 RELATIVE_DAY = re.compile(r"\b(?:today|tomorrow|tonight|yesterday|next\s+(?:week|month|business\s+day|\w+day)|this\s+\w+day"
                           r"|(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day|Thanksgiving|Christmas|New\s+Year'?s(?:\s+(?:Day|Eve))?|Memorial\s+Day"
@@ -1121,15 +1116,10 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES, is
     # something else in the next clause does not count); deadlines are found by binary search.
     read_times = {(_time_key(d.time), _zone_key(d.timezone)) for d in out if d.time}
     def _real_change(pos: int, end: int) -> bool:
-        """A change term that is not directly negated ("is not changed", "will not be extended", "no change to"); a
-        negated one still counts when its sentence contrasts or shifts ("not extended by one week but by two weeks",
-        "not changed; it is one week later")."""
-        clause = s[pos:end]
-        terms = list(CHANGE_TERM.finditer(clause))
-        if any(not NEGATED_CHANGE.search(clause, max(0, m.start() - 30), m.start()) or OPEN_LIMIT_AFTER.match(clause, m.end()) for m in terms):
-            return True
-        e = bisect.bisect_left(sent_ends, pos)
-        return bool(terms) and bool(CONTRAST.search(s, pos, sent_ends[e] + 1 if e < len(sent_ends) else len(s)))
+        """Any change term, negated or not. A negation exemption ("is not changed") was tried in r6 and removed: it could
+        not be made to fail safely when the actual change is in a neighbouring sentence ("The proposal due date will not
+        be extended. Offerors have an additional week.")."""
+        return CHANGE_TERM.search(s, pos, end) is not None
     def _restates(t: re.Match, text: str) -> bool:  # "...; proposals received after 5:00 PM ET will be rejected"
         z = TZ_AFTER.match(text, t.end())
         key = _time_key(t.group(0))

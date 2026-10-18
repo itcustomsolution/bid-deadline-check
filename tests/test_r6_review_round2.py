@@ -49,6 +49,8 @@ FIXED = [
     OLD + "All times listed are Central Time (for example, 10:00 AM CT).",
     OLD + "Offerors now have until November 12, 2026 at 5:00 PM ET.",
     "Proposals in response to this call are due at 3:00 PM ET, November 5, 2026 (5:00 PM ET portal).",
+    # caught by e62299f and lost to f16da2e's negation exemption, which the final commit removes
+    OLD + "The proposal due date will not be extended. Offerors have an additional week.",
 ]
 
 
@@ -92,7 +94,6 @@ KNOWN_MISSES = [  # unresolved: each reads cleanly although a careful reader wou
     OLD + "The date above is no longer valid.",
     OLD + "That date has passed and a new one is coming.",
     OLD + "Offerors have one additional week to respond.",
-    OLD + "The proposal due date will not be extended. Offerors have an additional week.",
     OLD + "An additional 14 calendar days is provided for proposal preparation.",
     OLD + "Proposal due date: see Amendment 0003.",
     OLD + "Offerors are given until close of business November 12, 2026.",

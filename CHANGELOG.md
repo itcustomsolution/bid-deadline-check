@@ -26,7 +26,8 @@ starts with an `OUTCOME:` line.
   `quoted_or_former`; a time paired with another zone before the date is `other_time`; zone statements that change the
   zone or use "Time zone for all deadlines:" are read; a kind withdrawn in one place holds the same cutoff elsewhere;
   generic deadline words in a review item hold the proposal deadline; hard copies name a proposal submission. A
-  directly negated change verb is no longer a change, and more page-limit phrasings are read.
+  directly negated change verb was no longer a change (removed again later in this release), and more page-limit
+  phrasings are read.
 - Independent review round 1 (BLOCK) fixes: a dated change of no known kind ("The deadline is extended to <date>",
   "New date:", "extends it to", "Last day to submit:") is read as a proposal deadline of uncertain kind; solicitation
   cancellation is no longer hidden by a month named May, "could" or "No."; a negated change that its sentence
@@ -40,8 +41,11 @@ starts with an `OUTCOME:` line.
   lateness or method qualifier (and no longer held when an adjective such as "Late" or "Faxed" names only some
   proposals), zone redefinitions with "mean" and commas, zone statements that give an example time, "now have until
   <date>", "call" no longer an event, the exact FAR emergency clause and the wrapped default-time clause read cleanly.
-  33 further reviewer wordings still read cleanly; after two corrective rounds they are recorded as known misses
+  32 further reviewer wordings still read cleanly; after two corrective rounds they are recorded as known misses
   (strict expected failures in tests/test_r6_review_round2.py), not waived.
+- The negated-change exemption added in the second change is removed: with the real change in the next sentence
+  ("The proposal due date will not be extended. Offerors have an additional week.") it made a case read cleanly that
+  rc5 and the first r6 commit caught. Negated changes need review again (false failures, on purpose).
 - Evaluation: the development cases used while writing this change are frozen with labels, reasons and sources,
   and an independently prepared held-out set was sealed before any run, then a second one before the final run; results
   are in the release package. The

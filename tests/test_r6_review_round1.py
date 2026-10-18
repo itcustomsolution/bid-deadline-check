@@ -117,11 +117,22 @@ def test_r6r1_times_zones_and_weekdays_that_cannot_be_acted_on(text):
     assert props and all(d["status"] == "needs_review" for d in props), rep["deadlines"]
 
 
-CONTROLS = [
+# Reviewer probes that read cleanly while the negation exemption existed; it was removed, so they need review again
+# (false failures, on purpose).
+NEGATED = [
     OLD + "The proposal due date is not changed.",
     OLD + "The proposal due date will not be extended again.",
     OLD + "The closing time will NOT be EXTENDED for traffic delays.",
     OLD + "The closing time will not\nbe extended for traffic delays.",
+]
+
+
+@pytest.mark.parametrize("text", NEGATED)
+def test_r6r1_a_negated_change_needs_review(text):
+    assert strict_json(BASE + text)[0] == 2
+
+
+CONTROLS = [
     OLD + "If no time is specified in the solicitation, the time for receipt is 4:30  p.m., local time, for the designated "
           "Government office on the date that offers or revisions are due.",
     "Proposals due Friday, November 6, 2026 at 5:00 PM ET.",

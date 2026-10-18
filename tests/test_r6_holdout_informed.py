@@ -82,17 +82,22 @@ def test_r6b_unresolved_wording_holds_the_old_cutoff(text, code):
     assert held(rep), rep["deadlines"]
 
 
-FALSE_FAILURES = [  # nothing is unresolved: these must read
+# A directly negated change was exempted in f16da2e and the exemption was removed in the final commit: it could not
+# be made to fail safely when the real change sits in the next sentence. These are false failures again, kept on
+# purpose (README, known false failures); "no change to" never used a change verb and reads cleanly.
+NEGATED_CHANGES = [
     OLD + "The proposal due date is not changed.",
-    OLD + "There is no change to the closing date.",
     OLD + "The closing time will not be extended for traffic delays.",
 ]
 
 
-@pytest.mark.parametrize("text", FALSE_FAILURES)
-def test_r6b_a_directly_negated_change_is_not_a_change(text):
-    rc, rep = strict_json(BASE + text)
-    assert rc == 0, (rep["warnings"], rep["needs_review"])
+@pytest.mark.parametrize("text", NEGATED_CHANGES)
+def test_r6b_a_directly_negated_change_still_needs_review(text):
+    assert strict_json(BASE + text)[0] == 2
+
+
+def test_r6b_no_change_wording_reads():
+    assert strict_json(BASE + OLD + "There is no change to the closing date.")[0] == 0
 
 
 @pytest.mark.parametrize("limit", [

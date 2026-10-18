@@ -148,15 +148,16 @@ misses"). Read the solicitation and every amendment yourself.
   scanned PDFs without a text layer, and tables whose cells are split across lines in an order that separates a label
   from its date.
 
-A change verb directly negated ("is not changed", "will not be extended", "There is no change to the closing date") is
-not a change, unless the negation leaves room for one ("beyond <date>", "by more than a week", "except") or anything in
-its sentence contrasts with or shifts it ("but", "instead", "only", "now", "later", "until", a ";"). Hard, paper, printed
-and physical copies name a proposal submission, so a separate hard-copy deadline conflicts with the electronic one.
+A change verb counts even when it is negated ("The proposal due date is not changed." needs review): an exemption for
+negated changes was tried in this release and removed, because it could not be made safe when the real change is in the
+next sentence ("... will not be extended. Offerors have an additional week."). Hard, paper, printed and physical copies
+name a proposal submission, so a separate hard-copy deadline conflicts with the electronic one.
 
 Known false failures (NEEDS REVIEW although nothing is wrong): the same time restated in another zone or notation
 ("5:00 PM ET (2:00 PM PT)", "17:00 UTC-4 (ET)"); office hours in a deadline's sentence; numbers written like a
 screened date form (`Version 1.2.2026`, "In May, 12 2026 vehicles were inspected", `2026-111-05`, `JUN-12-1234`, and
-on a deadline line `RFP 2026-1-05`); a validity or performance-period change in a sentence that names a deadline;
+on a deadline line `RFP 2026-1-05`); a validity or performance-period change in a sentence that names a deadline; a negated change ("The proposal due date
+is not changed.", "will not be extended for traffic delays");
 hedged, conditional or hypothetical sentences that name a deadline and use change wording ("Requests for extension
 of the proposal due date will not be granted", "Proposals may be modified or withdrawn at any time before the closing
 date", "The County may extend the deadline by addendum"); a zone written as "Eastern" alone, "Arizona time" or
@@ -166,7 +167,7 @@ statement is not applied); a four-digit time without "hours" ("by 1600 CST"); da
 clause ("Questions are due as communicated..." stays READ only because "as" marks a reference).
 
 Known misses (READ although a careful reader would not act). Two independent review rounds kept finding wordings the
-rules do not read; 33 of them are recorded, with their exact text, as expected failures in
+rules do not read; 32 of them are recorded, with their exact text, as expected failures in
 `tests/test_r6_review_round2.py` (`KNOWN_MISSES`), among them "The date above is no longer valid.", "Amendment 0002 grants
 a two-week extension.", "Offerors have one additional week to respond.", "Proposal due date: to be advised.", "This RFP
 is no longer active.", "Time Zone: Central", and words split by a hyphen across a line break ("post-" / "poned").
