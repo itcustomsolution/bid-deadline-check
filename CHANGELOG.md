@@ -35,6 +35,13 @@ starts with an `OUTCOME:` line.
   accepted", schedule-wide changes (`schedule_changed`), pronoun and bare changes, holidays and weekday words, former
   and quoted dates, paired and earlier times, more zone statement forms, abbreviated weekdays and a stated emergency
   are reviewed.
+- Independent review round 2 (BLOCK) fixes: extra time granted ("given three additional days"), a negated date ("is no
+  longer <date>"), cancellation without a determiner and "Cancellation of Solicitation ...", "not accepted" without a
+  lateness or method qualifier (and no longer held when an adjective such as "Late" or "Faxed" names only some
+  proposals), zone redefinitions with "mean" and commas, zone statements that give an example time, "now have until
+  <date>", "call" no longer an event, the exact FAR emergency clause and the wrapped default-time clause read cleanly.
+  33 further reviewer wordings still read cleanly; after two corrective rounds they are recorded as known misses
+  (strict expected failures in tests/test_r6_review_round2.py), not waived.
 - Evaluation: the development cases used while writing this change are frozen with labels, reasons and sources,
   and an independently prepared held-out set was sealed before any run, then a second one before the final run; results
   are in the release package. The

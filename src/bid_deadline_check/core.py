@@ -261,13 +261,19 @@ TBD_DL = re.compile(rf"\b(?:{_DL_PHRASE}|due)\b[\s:,\-|(]*(?:is\s+|are\s+|remain
                     r"|\bnew\s+(?:\w+\s+){0,2}?(?:date|deadline|time)s?\s+(?:will|shall)\s+be\s+(?:set|announced|established|determined|issued|provided)\b"
                     rf"|\b(?:{_DL_PHRASE})\s+(?:\w+\s+){{0,3}}?(?:will|shall)\s+be\s+(?:re-?established|re-?set|announced|determined)\b"
                     r"|\b(?:TBD|TBA)\b|\bT\.\s?B\.\s?[DA]\b\.?", re.I)
+# After "not accepted": a lateness or delivery-method qualifier makes it a late-proposal or format rule, not a negation.
+_LATE_QUALIFIER = (r"\s+(?:after|later\s+than|past|beyond|before|unless|if|via|through|by|"
+                   r"(?:in|on|as)\s+(?:paper|hard\s+copy|hardcopy|person)|electronically|orally|verbally)\b")
+# Before the noun: an adjective that names only some proposals ("Late proposals will not be accepted").
+NEG_QUALIFIED = re.compile(r"\b(?:late|oral|verbal|faxed|facsimile|e-?mailed|telephonic|telephone|unsigned|incomplete|partial|alternate"
+                           r"|unsolicited|multiple|duplicate|electronic|paper|hand-?delivered|hard-?copy|conditional|qualified)\s+$", re.I)
 NEG_DL = re.compile(r"\b(?:proposals?|offers?|bids?|quotes?|quotations?|responses?|submissions?)\s+(?:are|is)\s+(?:not|no\s+longer)\s+due\b"
                     rf"|\bnot\s+due\s+on\s+the\b|\b(?:{_DL_PHRASE})\s+(?:\w+\s+){{0,3}}?(?:no\s+longer\s+(?:applies|apply|in\s+effect|valid)|does\s+not\s+apply)\b"
                     r"|\b(?:due|deadline|date)\b[^.;]{0,60}\banymore\b"
                     r"|\b(?:proposals?|offers?|bids?|quotes?|quotations?|responses?|submissions?)[\s:|\-]+(?:are\s+|is\s+|will\s+|shall\s+)?(?:no\s+longer|not)\s+"
-                    r"(?:be\s+|being\s+)?(?:accepted|received|solicited|considered|required)\b(?!\s+(?:after|by|before|via|through|unless|if|in|at|from|by))"
+                    rf"(?:be\s+|being\s+)?(?:accepted|received|solicited|considered|required)\b(?!{_LATE_QUALIFIER})"
                     r"|\bno\s+(?:proposals?|offers?|bids?|quotes?|quotations?|responses?|submissions?)\s+(?:will|shall|are|is|can)\s+(?:be\s+|being\s+)?"
-                    r"(?:accepted|received|considered|solicited)\b(?!\s+(?:after|before|via|through|unless|if|in|at|from|by))", re.I)
+                    rf"(?:accepted|received|considered|solicited)\b(?!{_LATE_QUALIFIER})", re.I)
 RELATIVE_SHIFT = re.compile(rf"\b(?:later|earlier|sooner)\s+than\s+(?:\w+\s+){{0,2}}?(?:stated|originally|previously|scheduled|shown|listed|specified|indicated|set)\b"
                             rf"|\b{_SHIFT}\s+(?:later|earlier|sooner)\b|\breopen(?:s|ed|ing)?\b|\bre-?open(?:s|ed|ing)?\b"
                             r"|\b(?:deferr?(?:ed|ing|s)?|tolled|tolling|paused|stayed|put\s+back|pulled\s+forward|moved\s+up|held\s+in\s+abeyance"
@@ -284,7 +290,7 @@ CHECKBOX_ANY = re.compile(r"\[[^\]]{0,3}\]\s*(?:is|are)\s+(?:not\s+)?extended\b"
 ZONE_STATEMENT = re.compile(r"\b(?:(?:all|the|any)\s+)?(?:(?:dates?|deadlines?)\s+and\s+)?(?:times?|deadlines?)\b[^.;]{0,80}?\b(?:are|is|shall\s+be|will\s+be"
                             r"|refer\s+to|stated\s+in|expressed\s+in|in)\b"
                             r"|\b(?:time\s*zone|zone)\s+(?:for|of|used\s+for)\s+(?:all|every|each)\b"
-                            r"|(?P<redefine>\b(?:E|C|M|P|AK|H)[SD]?T\W{0,2}\s+(?:\w+\s+){0,4}?(?:means|refers\s+to|denotes|stands\s+for|is\s+to\s+be\s+read\s+as))\b", re.I)
+                            r"|(?P<redefine>\b(?:E|C|M|P|AK|H)[SD]?T\W{0,2}\s+(?:[\w,]+\s+){0,6}?(?:means?|refers?\s+to|denotes?|stands?\s+for|is\s+to\s+be\s+read\s+as|shall\s+mean))\b", re.I)
 # A bare US zone name in a zone statement ("Time zone for all deadlines: Eastern").
 BARE_ZONE = re.compile(r"\b(Eastern|Central|Mountain|Pacific|Alaska|Hawaii)\b(?!\s+(?:Standard\s+|Daylight\s+|Prevailing\s+)?Time\b)", re.I)
 # A zone that a statement rules out: "..., not Eastern Time", "changed from Eastern Time to Central Time".
@@ -299,7 +305,8 @@ SOLICITATION_VOID = re.compile(
     r"(?:cancel+ed|withdrawn|rescinded|suspended|postponed|terminated|paused|on\s+(?:pause|hold)|placed\s+on\s+hold|closed(?!\s+(?:to|for)\b))\b"
     r"|\bnotice\s+of\s+(?:cancel+ation|withdrawal|suspension)\b|\bcancel+ation\s+notice\b"
     r"|\b(?:cancel(?:s|l?ing)|(?:has|have|had)\s+(?:now\s+|hereby\s+)?(?:cancel+ed|withdrawn|rescinded|suspended|terminated)"
-    r"|withdraw(?:s|ing)|withdrew|rescind(?:s|ing|ed)|suspend(?:s|ing|ed)|terminat(?:es|ing|ed)|cancel+ed)\s+(?:the|this|its)\s+(?:solicitation|RFP|RFQ|RFB|IFB|request\s+for|acquisition|procurement)\b"
+    r"|withdraw(?:s|ing)|withdrew|rescind(?:s|ing|ed)|suspend(?:s|ing|ed)|terminat(?:es|ing|ed)|cancel+ed)\s+(?:(?:the|this|its|said)\s+)?(?:solicitation|RFP|RFQ|RFB|IFB|request\s+for|acquisition|procurement)\b"
+    r"|\b(?:cancel+ation|withdrawal|rescission|suspension)\s+of\s+(?:(?:the|this|its|said)\s+)?(?:solicitation|RFP|RFQ|RFB|IFB|request\s+for|acquisition|procurement)\b"
     r"|\bdraft\s+(?:RFP|RFQ|RFB|IFB|solicitation|request\s+for)\b|\bfor\s+comment\s+only\b|\bnotional\b"
     r"|\b(?:proposals?|offers?|bids?|quotes?|quotations?|responses?)\s+are\s+not\s+(?:being\s+|yet\s+)?(?:requested|solicited|accepted|sought)\b", re.I)
 # "asked whether this solicitation was cancelled", "if the RFP is cancelled": a question or a condition cancels nothing.
@@ -316,11 +323,13 @@ QUOTED_BEFORE = re.compile(r"\b(?:stated|states|said|says|indicated|showed|shows
                            r"|\b(?:was|were|had\s+been|used\s+to\s+be)\s*(?:on\s+)?$|\buntil\s+this\s+(?:amendment|addendum|notice|modification)\b"
                            r"|\b(?:was|were|had\s+been)\s+(?:originally\s+|previously\s+|formerly\s+|first\s+)?(?:due|scheduled|set|required)\b"
                            r"|\b(?:former|original|old|previous|prior|superseded|earlier)\s+(?:\w+\s+){0,2}?(?:due\s+dates?|deadlines?|closing(?:\s+dates?)?|due)\b", re.I)
+# "The proposal due date is no longer <date>", "... is not <date>, as previously stated": the date itself is negated.
+DATE_NEGATED = re.compile(r"\b(?:is|are|was|were|will\s+be|shall\s+be)\s+(?:no\s+longer|not|never)\s+(?:on\s+)?$", re.I)
 # A change verb directly negated ("is not changed", "will not be extended", "no change to") is not a change, unless the
 # negation leaves room for one ("will not be extended beyond <date>").
 NEGATED_CHANGE = re.compile(r"\b(?:not|no|never)\s+(?:be\s+|been\s+|being\s+)?(?:further\s+|yet\s+|again\s+)?$", re.I)
 PAIRED_TIME = re.compile(r"\s*(?:,|/|\bor\b|\band\b|\||\()\s*(?=\d)", re.I)
-EVENT_BEFORE = re.compile(r"\b(?:briefing|conference|site\s+visit|visit|meeting|call|session|webinar|walk-?through|tour|opening|interview"
+EVENT_BEFORE = re.compile(r"\b(?:briefing|conference|site\s+visit|visit|meeting|conference\s+call|session|webinar|walk-?through|tour|opening|interview"
                           r"|presentation|demonstration|orals?|debriefing|industry\s+day)s?\b[^.;]{0,25}$", re.I)
 CUTOFF_BEFORE = re.compile(r"\b(?:by|before|until|no\s+later\s+than|not\s+later\s+than|NLT|prior\s+to|on\s+or\s+before)\s*$", re.I)  # "3:00 PM PST / 3:00 PM EST"
 OPEN_LIMIT_AFTER = re.compile(r"\s*(?:beyond|past|after|later\s+than|unless|by\s+(?:more|up)\s+(?:than|to)|more\s+than|up\s+to|except|until)\b", re.I)
@@ -337,14 +346,20 @@ NEW_LABEL = re.compile(r"\b(?:new|revised|updated|amended|extended|changed|corre
 # A date of no known kind in a clause that uses a deadline or submission word may be the proposal deadline.
 SUBMIT_ANY = re.compile(r"\b(?:submit\w*|deliver\w*|receiv\w*|accept\w*|due|deadlines?|closing|cut-?offs?|opening)\b", re.I)
 # The interruption that triggers the FAR emergency extension, stated as a fact.
-EMERGENCY_STATED = re.compile(r"\b(?:were|was|have\s+been|has\s+been|are|is)\s+(?:\w+\s+)?(?:interrupted|shut\s+down)\b"
+EMERGENCY_STATED = re.compile(rf"\b(?:were|was|have\s+been|has\s+been|are|is)\s+(?:\w+\s+)?(?:interrupted|shut\s+down)\b"
                               r"|\b(?:office|building|government|agency)\b[^.;]{0,30}\b(?:was|were|is|are|has\s+been|have\s+been)\s+(?:\w+\s+)?closed\b"
-                              r"|\b(?:emergency|unanticipated\s+event)\s+(?:has\s+|had\s+)?(?:occurred|happened|exists|arisen)\b|\bprocesses\s+(?:resume[ds]?|will\s+resume)\b", re.I)
+                              rf"|\b(?:emergency|unanticipated\s+event)\s+(?:has\s+|had\s+)?(?:occurred|happened|exists|arisen)\b|\bprocesses\s+(?:resume[ds]?|will\s+resume)\s+(?:on\s+)?{_DATE_NEXT}", re.I)
 BARE_CHANGE = re.compile(r"^\W{0,3}(?:extended|postponed|moved|changed|shortened|delayed|rescheduled|cancel+ed|withdrawn|suspended|deferred"
                          r"|advanced|revised|amended)\b", re.I)
 # Only with a pronoun or a bare date word as the object: "extends it to <date>", not "the period of performance may be
 # extended to <date>" (a term, not a deadline; see KR2-07).
 CHANGE_TO_DATE = re.compile(rf"(?:{CHANGE_VERB})\s+(?:it|them|this|that|the\s+(?:date|time|deadline))\s+(?:\w+\s+){{0,3}}?(?:to|until|till|through)\b[\s:]*{_DATE_NEXT}", re.I)
+ADDED_TIME = re.compile(r"\b(?:additional|extra|further|more)\s+(?:\d+\s+|(?:one|two|three|four|five|six|seven|eight|nine|ten|several|a\s+few)\s+)?"
+                        r"(?:business\s+|calendar\s+|working\s+)?(?:days?|hours?|weeks?|minutes?)\b"
+                        r"|\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|several)\s+(?:more|additional|extra)\s+(?:business\s+|calendar\s+|working\s+)?(?:days?|hours?|weeks?)\b", re.I)
+EXAMPLE = re.compile(r"\b(?:for\s+example|for\s+instance|e\.\s?g\.|such\s+as)", re.I)
+# "Offerors now have until <date>": a new cutoff given as how long offerors now have (not "now accepting").
+NOW_DATE = re.compile(r"\bnow\s+(?:have|has|get|gets|receive|be\s+given|are\s+given|is\s+given)\s+(?:\w+\s+){0,3}?(?:until|till|through|to)\b", re.I)
 # "It is extended one week.": a change whose subject is only a pronoun; which deadline it changes is unknown.
 PRONOUN_CHANGE = re.compile(r"^\s*(?:it|this|that|they|these|those)\s+(?:is|are|has\s+been|have\s+been|will\s+be|was|were|shall\s+be)\s+(?:\w+\s+)?"
                             r"(?:extended|postponed|moved|changed|shortened|delayed|advanced|pushed|rescheduled|cancel+ed|withdrawn|suspended)\b", re.I)
@@ -1021,7 +1036,7 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES, is
                 elif tz is None:
                     amb.append("no_timezone")
             negs = list(NEGATION.finditer(region))
-            negated = bool(negs) and not STRONG_TRIGGER.search(region, negs[-1].end())
+            negated = (bool(negs) and not STRONG_TRIGGER.search(region, negs[-1].end())) or bool(DATE_NEGATED.search(region))
             plain_after = CONDITIONAL.sub("", after)  # "unless cancelled by amendment" does not withdraw it
             if superseded or negated or WITHDRAWN.search(region) or WITHDRAWN.search(plain_after) or VOIDED_AFTER.search(plain_after):
                 amb.append("negated_or_withdrawn")
@@ -1140,7 +1155,7 @@ def _deadlines_in(st: _Statement, prev: str = "", limit: int = MAX_DEADLINES, is
                     reason = "deadline_cancelled_or_suspended"
                 elif TBD_DL.search(clause):
                     reason = "deadline_to_be_determined"
-                elif NEG_DL.search(clause):
+                elif any(not NEG_QUALIFIED.search(clause, max(0, m.start() - 24), m.start()) for m in NEG_DL.finditer(clause)):
                     reason = "deadline_negated"
                 elif _real_change(pos, end) or RELATIVE_SHIFT.search(clause) or IMPERATIVE_CHANGE.match(clause) or NOW_TALK.search(clause):
                     reason = "change_not_read"
@@ -1310,22 +1325,27 @@ def analyze(text: str) -> Report:
                 revisions.append({**item, "reason": "deadline_to_be_determined"})
             if SCHEDULE_CHANGE.search(sent):
                 revisions.append({**item, "reason": "schedule_changed"})
-            if (EMERGENCY_STATED.search(sent) or PRONOUN_CHANGE.search(sent) or BARE_CHANGE.match(sent)
-                    or ((NEW_LABEL.search(sent) or CHANGE_TO_DATE.search(sent)) and DATE_RE.search(sent))):
+            standard = any(rx.fullmatch(sent.strip()) for _, rx in STANDARD_CLAUSES)  # unaltered standard text
+            if not standard and (EMERGENCY_STATED.search(sent) or PRONOUN_CHANGE.search(sent) or BARE_CHANGE.match(sent)
+                                 or (ADDED_TIME.search(sent) and (SUBMIT_ANY.search(sent) or DEADLINE_NOUN_RE.search(sent) or REVIEW_TALK.search(sent)))
+                                 or ((NEW_LABEL.search(sent) or CHANGE_TO_DATE.search(sent) or NOW_DATE.search(sent)) and DATE_RE.search(sent))):
                 revisions.append({**item, "reason": "change_not_read"})
             # "All times are Central Time, not Eastern Time.": a statement that sets the zone of every time.
             # A sentence with a clock time is not one, but a line of it may be ("Time zone for all deadlines: Mountain"
             # joined to the next line's deadline).
             parts = []
             if ZONE_STATEMENT.search(sent):  # statements are at most 25 lines, so this scan of line starts is bounded
-                cuts = [0, len(sent)] if not clock else [0, *(off - start for off, _ in st.starts if start < off < pos), len(sent)]
-                parts = [(x, y) for x, y in zip(cuts, cuts[1:]) if not clock
+                # A sentence with no date may give an example time ("All times listed are Central Time (for example,
+                # 10:00 AM CT)"); with a date, only a line of it that has no clock time counts.
+                whole = not clock or (not DATE_RE.search(sent) and EXAMPLE.search(sent) is not None)
+                cuts = [0, len(sent)] if whole else [0, *(off - start for off, _ in st.starts if start < off < pos), len(sent)]
+                parts = [(x, y) for x, y in zip(cuts, cuts[1:]) if whole
                          or not any(not DURATION_HOURS.fullmatch(t.group(0)) for t in TIME_RE.finditer(sent, x, y))]
             for x, y in parts:
                 part = sent[x:y]
                 if not ZONE_STATEMENT.search(part):
                     continue
-                zs = [(z.start(), _zone_key(z.group(0))) for z in TZ_RE.finditer(part)]
+                zs = [(z.start(), _zone_key(z.group(0))) for z in TZ_RE.finditer(part) if _zone_key(z.group(0)) != "local time"]
                 zs += [(z.start(), ZONE_NAMES[z.group(1).lower()]) for z in BARE_ZONE.finditer(part)]
                 if zs:
                     neg = {k for at, k in zs if ZONE_RULED_OUT.search(part, max(0, at - 14), at)}

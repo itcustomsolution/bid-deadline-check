@@ -108,7 +108,8 @@ A sentence without any of these is not reviewed.
 
 It does **not** mean that every deadline or requirement in the document was found, that the extracted values are what
 the agency intended, or that a submission would be timely. `--strict` is an extraction aid, not a deadline or amendment
-safety gate. Read the solicitation and every amendment yourself.
+safety gate: the rules recognize listed wordings, and wordings outside them can still read cleanly (see "Known
+misses"). Read the solicitation and every amendment yourself.
 
 ## Supported scope
 
@@ -164,8 +165,13 @@ statement is not applied); a four-digit time without "hours" ("by 1600 CST"); da
 `14-JAN-2027`; a notice of intent to bid or a second round of questions read as a second deadline of the same kind; a standard clause in any wording other than the published one; and an announcement verb in a deadline's
 clause ("Questions are due as communicated..." stays READ only because "as" marks a reference).
 
-Known misses (READ although a careful reader would not act): a deadline date that has already passed (the tool does
-not know today's date); a change sentence that uses none of the deadline words above; a change or new deadline written in a date form outside both lists; a change stated only by reference
+Known misses (READ although a careful reader would not act). Two independent review rounds kept finding wordings the
+rules do not read; 33 of them are recorded, with their exact text, as expected failures in
+`tests/test_r6_review_round2.py` (`KNOWN_MISSES`), among them "The date above is no longer valid.", "Amendment 0002 grants
+a two-week extension.", "Offerors have one additional week to respond.", "Proposal due date: to be advised.", "This RFP
+is no longer active.", "Time Zone: Central", and words split by a hyphen across a line break ("post-" / "poned").
+Also missed: a deadline date that has already passed (the tool does not know today's date); a change sentence that uses
+none of the deadline words above; a change or new deadline written in a date form outside both lists; a change stated only by reference
 ("see Amendment 0003 for the new date") with no change word; and any wording this rule-based tool has not been
 written for. The measured rates on the development cases and on an independent held-out set are in the release
 package, not here, because they describe one evaluation, not a guarantee.
@@ -231,8 +237,9 @@ short or is in an unsupported form, such as `UTC+05:30:15`), `zone_invalid`, `zo
 - Limits: files and stdin over 50 MB are refused. At most 2000 deadlines and 10000 requirements are
   extracted per document; a warning says where extraction stopped. At most 50 unresolved sentences are listed, each with up
   to 600 characters of its source text; a warning counts the rest. Measured on macOS (arm64) for this
-  candidate on inputs up to 1 MB, analysis takes up to about 3.5 s per MB of text and grows linearly
-  (about 31 to 75 MB peak memory at 1 MB, including 2000 deadlines followed by zone statements). Larger inputs were not measured for this candidate; the previous
+  candidate on inputs up to 1 MB, analysis grows linearly and takes up to about 6 s per MB of text, with up to
+  about 180 MB peak memory at 1 MB (the slowest and largest shapes found in review: a dense run of numbers; 2000
+  deadlines followed by zone statements took 2.2 s and 58 to 75 MB). Larger inputs were not measured for this candidate; the previous
   candidate needed 456 MB and 11 s for 20 MB of dense dated text and 321 MB and 37 s for 20 MB of one-word
   lines, so a 50 MB input should be expected to need more than a gigabyte and minutes.
 - PDFs over 1000 pages or over 5 million extracted characters are refused (checked between pages). By
