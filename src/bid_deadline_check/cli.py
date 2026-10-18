@@ -11,9 +11,17 @@ from .core import analyze, read_document, read_stdin_bounded
 
 
 def render_text(rep) -> str:
-    out = ["DEADLINES"]
+    out = [f"OUTCOME: {'READ' if rep.outcome == 'read' else 'NEEDS REVIEW'}"
+           + ("" if rep.outcome == "read" else f" ({len(rep.needs_review)} unresolved deadline sentence(s), {len(rep.warnings)} warning(s))")]
+    if rep.needs_review:
+        out.append("NEEDS REVIEW (read these in the source; no deadline was read from them)")
+        for n in rep.needs_review:
+            where = f"line {n['line']}" + (f"-{n['end_line']}" if n["end_line"] != n["line"] else "")
+            out.append(f"  ? [{n['reason']}] {where}: " + n["text"].replace("\n", " / "))
+    out.append("DEADLINES")
     out += [f"  [{d.kind}] {d.date} {d.time or '(no time)'} {d.timezone or '(no timezone)'}  (line {d.line})"
-            + (f"  CHECK: {', '.join(d.ambiguities)}" if d.ambiguities else "") for d in rep.deadlines] or ["  none found"]
+            + (f"  CHECK: {', '.join(d.ambiguities)}" if d.ambiguities else "")
+            + ("" if d.status == "actionable" else "  NOT ACTIONABLE AS STATED: needs review") for d in rep.deadlines] or ["  none found"]
     out.append("PAGE LIMITS")
     out += [f"  {p.applies_to}: {p.pages} pages  (line {p.line})" for p in rep.page_limits] or ["  none found"]
     out.append("FORMAT RULES")
@@ -50,8 +58,9 @@ def main(argv=None) -> int:
     ap.add_argument("file", help="solicitation .pdf or .txt/.md ('-' for stdin)")
     ap.add_argument("--format", "-f", choices=["text", "json", "csv", "md"], default="text")
     ap.add_argument("--strict", action="store_true",
-                    help="exit 2 if any warning fired. Exit 0 means only that none of the implemented checks fired "
-                         "(see README, 'What --strict means'); it does not prove every deadline was found or is correct")
+                    help="exit 2 unless the outcome is READ (no check fired and every deadline is actionable); exit 2 means "
+                         "NEEDS REVIEW. READ means only that none of the implemented checks fired (see README, 'What --strict "
+                         "means'); it does not prove every deadline was found or is correct")
     ap.add_argument("--version", action="version", version=__version__)
     a = ap.parse_args(argv)
     try:
@@ -70,7 +79,7 @@ def main(argv=None) -> int:
         print(render_md(rep))
     else:
         print(render_text(rep))
-    return 2 if a.strict and rep.warnings else 0
+    return 2 if a.strict and rep.outcome != "read" else 0
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.0rc6 (unreleased candidate, 2026-10-18; not published; 0.2.0rc5 and earlier were audited and are frozen)
+
+**Breaking:** every report has an `outcome` (`read` or `needs_review`) and a `needs_review` list; deadlines carry
+`status` and `review`; `--strict` exits 2 unless the outcome is READ, so it fails on more documents; text output
+starts with an `OUTCOME:` line.
+
+- R5-DL-UNSAFE: a sentence that names a deadline and changes, cancels, suspends, negates or defers it, or gives a
+  time or date this tool does not read, is no longer silently ignored when an earlier cutoff was recognized. It is
+  listed for review with its exact source text and a reason code, and every deadline it may change is marked not
+  actionable as stated. Covers imperative changes ("Alter the closing time"), "reopens", relative shifts ("one week
+  later than stated"), checked SF-30 boxes, TBD, "until further notice", "proposals will be accepted until",
+  `2026.11.5`, `20261112` and `2026 11 12`.
+- Zones: IANA names are checked against the zone database (`zone_invalid`, `zone_unverified`); offsets outside
+  UTC-12:00 to UTC+14:00 or with odd minutes are invalid; a second zone for one time is `zone_conflict`; "local
+  time" is `zone_unanchored`; a statement setting the zone for all times is reviewed against each deadline.
+- Dates: a written weekday that does not match the date and years outside 1900 to 2100 are flagged; "was
+  publicized", "were notified" and similar announcement wording before a date is `issue_date_possible`.
+- Unchanged FAR 52.212-1 and 52.215-1 receipt clauses are not reviewed when they match the published text exactly;
+  any alteration is reviewed.
+- Evaluation: the development cases used while writing this change are frozen with labels, reasons and sources,
+  and an independently prepared held-out set was sealed before any run; results are in the release package. The
+  earlier candidates were tuned on the cases they were evaluated on, and this candidate was developed on the
+  development set, so its development results are not an independent measure.
+
 ## 0.2.0rc5 (unreleased candidate, 2026-10-17; not published; 0.2.0rc1 of 2026-10-16 and 0.2.0rc2 to 0.2.0rc4 of 2026-10-17 were the independently audited candidates)
 
 **Breaking:** deadline extraction output changes (more deadlines, new kinds `registration` and
