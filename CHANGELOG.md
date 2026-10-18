@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0rc6 (unreleased candidate, 2026-10-18; not published; 0.2.0rc5 and earlier were audited and are frozen)
+## 0.2.0rc6 (unreleased candidate, 2026-10-17; not published; 0.2.0rc5 and earlier were audited and are frozen)
 
 **Breaking:** every report has an `outcome` (`read` or `needs_review`) and a `needs_review` list; deadlines carry
 `status` and `review`; `--strict` exits 2 unless the outcome is READ, so it fails on more documents; text output
@@ -27,6 +27,14 @@ starts with an `OUTCOME:` line.
   zone or use "Time zone for all deadlines:" are read; a kind withdrawn in one place holds the same cutoff elsewhere;
   generic deadline words in a review item hold the proposal deadline; hard copies name a proposal submission. A
   directly negated change verb is no longer a change, and more page-limit phrasings are read.
+- Independent review round 1 (BLOCK) fixes: a dated change of no known kind ("The deadline is extended to <date>",
+  "New date:", "extends it to", "Last day to submit:") is read as a proposal deadline of uncertain kind; solicitation
+  cancellation is no longer hidden by a month named May, "could" or "No."; a negated change that its sentence
+  contrasts or shifts is a change again (a regression in the second change); zone statements are compared with every
+  deadline at once (memory had grown with statements times deadlines); label, status, pending, N/A, "no longer
+  accepted", schedule-wide changes (`schedule_changed`), pronoun and bare changes, holidays and weekday words, former
+  and quoted dates, paired and earlier times, more zone statement forms, abbreviated weekdays and a stated emergency
+  are reviewed.
 - Evaluation: the development cases used while writing this change are frozen with labels, reasons and sources,
   and an independently prepared held-out set was sealed before any run, then a second one before the final run; results
   are in the release package. The

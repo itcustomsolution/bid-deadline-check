@@ -64,7 +64,9 @@ UNSAFE = [  # (text after BASE, expected review reason or deadline code); the ol
      "zone_statement"),
     ("Time zone for every deadline: Mountain\nProposals due November 5, 2026 at 5:00 PM PT.", "zone_statement"),
     (OLD + "Hard copies are due by 2:00 PM ET on November 6, 2026.", "conflicting_proposal_due"),
-    (OLD + "Revised deadline: November 19, 2026 1:30\nQuestions are due October 2, 2026 at 10:00 AM ET.", "change_not_read"),
+    # The revised date is now read as a proposal deadline of uncertain kind, so the old cutoff conflicts with it
+    # (round-1 review change; this case was held through change_not_read before).
+    (OLD + "Revised deadline: November 19, 2026 1:30\nQuestions are due October 2, 2026 at 10:00 AM ET.", "conflicting_proposal_due"),
     (OLD + "The closing date will not be extended beyond November 12, 2026.", "change_not_read"),
     (OLD + "The due date is not extended but is moved to the following week.", "change_not_read"),
 ]
