@@ -35,23 +35,25 @@ bid-deadline-check solicitation.txt -f json
 ```
 
 Abridged example output (from `tests/fixtures/rfp_sample.txt`, a synthetic RFP; most sentences of a real solicitation
-are outside the recognized forms, so NEEDS REVIEW is the normal result). It was produced by an earlier 0.2.0rc7 build;
-the counts and `detail` texts of the current candidate differ and are to be regenerated with the command above:
+are outside the recognized forms, so NEEDS REVIEW is the normal result). Produced by the 0.2.0 build:
 
 ```
-OUTCOME: NEEDS REVIEW (8 sentence(s) to review, 11 warning(s))
+OUTCOME: NEEDS REVIEW (11 sentence(s) to review, 14 warning(s))
 NEEDS REVIEW (read these in the source)
-  ? [not_recognized] line 1: SOLICITATION NO. EXAMPLE-26-R-0001 (SYNTHETIC SAMPLE)  (not recognized: SYNTHETIC)
+  ? [not_recognized] line 1: SOLICITATION NO. EXAMPLE-26-R-0001 (SYNTHETIC SAMPLE)  (not recognized: not a supported sentence form: ...)
   ...
+  ? [not_recognized] line 6: L.1 Questions regarding this solicitation are due no later than October 20, 2026 at 2:00 PM Eastern Time.  (not recognized: not a supported deadline form: Questions regarding this solicitation are due no later than <D> at <T> <Z>.)
   ? [not_recognized] line 8: L.3 A pre-proposal conference (site visit) will be held 10/27/2026 at 10:00 AM local time; registration is due by 10/23/2026.  (not recognized: a deadline that is not complete)
   ...
-  ? [not_recognized] line 21: The Government will evaluate proposals in accordance with Section M.  (not recognized: evaluate)
+  ? [not_recognized] line 21: The Government will evaluate proposals in accordance with Section M.  (not recognized: not a supported sentence form: ...)
 DEADLINES
   [questions_due] October 20, 2026 2:00 PM Eastern Time  (line 6)  NOT ACTIONABLE AS STATED: needs review
   [proposal_due] November 5, 2026 11:00 AM EDT  (line 7)  NOT ACTIONABLE AS STATED: needs review
   [site_visit] 10/27/2026 10:00 AM local time  (line 8)  CHECK: zone_unanchored  NOT ACTIONABLE AS STATED: needs review
   [registration] 10/23/2026 (no time) (no timezone)  (line 8)  CHECK: no_time  NOT ACTIONABLE AS STATED: needs review
 PAGE LIMITS
+  Volume I Technical: 20 pages  (line 13)
+  Volume II Past Performance: 10 pages  (line 14)
 ...
 ```
 
@@ -60,7 +62,7 @@ PAGE LIMITS
 Every run reports an outcome: **READ** or **NEEDS REVIEW** (`outcome` in JSON, the first line of text output).
 `--strict` exits 2 unless the outcome is READ, and 1 when the input cannot be read.
 
-Since 0.2.0rc7, READ is **allow-list based**: every sentence of the input must be positively recognized (next
+Since 0.2.0, READ is **allow-list based**: every sentence of the input must be positively recognized (next
 section), and in addition none of the checks below may fire. An unrecognized sentence is a review item with reason
 `not_recognized`, its exact text and a `detail` saying what is not recognized (for most sentences, the sentence as it
 was compared with the templates; otherwise the character, marker or deadline problem found), and it
@@ -271,10 +273,11 @@ Known misses (READ although a careful reader would not act). The 41 wordings tha
 "Time Zone: Central", ...) are now caught and are ordinary tests. What the allow-list cannot see: a deadline date that
 has already passed (the tool does not know today's date); an amendment that is not in the input; a supported-form
 deadline that is itself wrong; and a change written entirely in the recognized forms above. The forms were reviewed
-one by one and attacked in code review; every input found is now a test, and further ones may exist. The measured
-rates on the development cases and on the
-independent held-out sets are in the release package, not here, because they describe one evaluation, not a
-guarantee.
+one by one and attacked in code review; every input found is now a test, and further ones may exist. Measured once, on
+an independent held-out set of 200 synthetic excerpts sealed before any run (0.2.0, 2026-10-22): none of the 106
+excerpts labeled unsafe read cleanly and none left a proposal deadline actionable; all 94 clean excerpts needed
+review, each for a sentence outside the templates. That is one evaluation on synthetic text, not a guarantee, and it
+is the expected shape of this design: READ is rare and NEEDS REVIEW is the normal result.
 
 ## Library
 

@@ -1,6 +1,24 @@
 # Changelog
 
-## 0.2.0rc7 (unreleased candidate, 2026-10-18; not published; 0.2.0rc6 and earlier are frozen)
+## 0.2.0 (2026-10-22)
+
+The 0.2.0rc7 candidate below plus its fourth corrective round, released after an independent non-author review
+(2026-10-22) found no input that reads READ while a careful reader would not act (201 CLI probes and 939 generated
+combinations across the classes every earlier round had broken) and after one run of the third sealed held-out set.
+
+- Measured once on held-out set v3 (200 synthetic excerpts in 8 families, prepared and sealed on 2026-10-18 by a
+  separate instance that never saw the tool, and never run before this release): **0 of 106 labeled-unsafe excerpts
+  read cleanly, 0 left a proposal deadline actionable; 94 of 94 clean excerpts needed review** (every one for an
+  unrecognized sentence, most often a page-limit or restatement wording outside the templates). On the same set the
+  previous candidate 0.2.0rc6 missed 1 unsafe excerpt, left a proposal deadline actionable in 7 and flagged 76 of 94
+  clean excerpts. The set was not used to change anything.
+- Fourth corrective round (closes the third review's five findings): proposal labels and kind nouns are only
+  proposals, offers, quotes, quotations and bids; "will be" is not a deadline verb; "Price", "Past Performance",
+  "Technical Approach" and volume lines are not templates; headings count only as a whole statement; omission marks
+  and literal template slots are not recognized; characters are checked on each raw line. README states that a
+  late-receipt rule may omit its zone.
+
+## 0.2.0rc7 (candidate, 2026-10-18; not published)
 
 **Breaking:** READ is allow-list based (the owner's choice B). Every sentence must be positively recognized, or it is
 a review item (`not_recognized`, with a `detail`) that holds every deadline, so `--strict` exits 2 on almost every real
@@ -26,8 +44,8 @@ solicitation.
   address or a bare host name with no digit, path or listed stem; a bare "Due date:" label is not a proposal deadline;
   ASCII control characters and line separators other than newline and carriage return are reviewed; only "or" may
   follow a standard clause. The second review's inputs are tests; 76 earlier test texts are listed false failures.
-- After the third code review (BLOCK) and the owner's approval of one more corrective round (source prepared, not yet
-  tested or reviewed): proposal labels and kind nouns are only proposals, offers, quotes, quotations and bids
+- After the third code review (BLOCK) and the owner's approval of one more corrective round (tested and
+  independently reviewed for 0.2.0, above): proposal labels and kind nouns are only proposals, offers, quotes, quotations and bids
   ("responses", "submissions", "applications" and a bare "Closing date:" are not); "will be" is not in the deadline
   forms ("must be delivered" still is); "Price", "Past Performance", "Technical Approach" and volume lines are no longer templates;
   headings and the volume-list opener count only as a whole statement; omission marks ("...", "[...]", "* * *") and
