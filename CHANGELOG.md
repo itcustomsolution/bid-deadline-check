@@ -7,11 +7,10 @@ a review item (`not_recognized`, with a `detail`) that holds every deadline, so 
 solicitation.
 
 - A sentence holding a date, time or zone is recognized only if it holds one complete deadline in a fixed form whose
-  label names that deadline's kind; any other sentence only if, with references, page limits, format values, list
-  markers and addresses set aside, no digit is left, it names at most one kind of deadline, it does not begin in lower
-  case or with a joining or condition word, and every word is in a closed vocabulary (replaced by templates below).
-  Non-ASCII letters, look-alikes and invisible characters, a 12-hour time without AM or PM in a deadline, and sentences
-  cut at a statement edge are not recognized. Standard FAR receipt clauses, the checked SF-30 "is not extended" line, a
+  label names that deadline's kind. Any other sentence is recognized only if it matches a closed whole-sentence
+  template (see the last two items; the first candidate used a word list instead, which the code reviews broke and
+  which is removed). Non-ASCII letters, look-alikes and invisible characters, a 12-hour time without AM or PM in a
+  deadline, and sentences cut at a statement edge are not recognized. Standard FAR receipt clauses, the checked SF-30 "is not extended" line, a
   few fixed rule sentences, a matching late-receipt rule and an "All times are <zone>" statement are recognized whole.
 - The 41 wordings 0.2.0rc6 recorded as read cleanly (40 in its tests, one in its release notes) are caught and are
   ordinary tests, each required to produce a review item on its own lines.
@@ -27,6 +26,15 @@ solicitation.
   address or a bare host name with no digit, path or listed stem; a bare "Due date:" label is not a proposal deadline;
   ASCII control characters and line separators other than newline and carriage return are reviewed; only "or" may
   follow a standard clause. The second review's inputs are tests; 76 earlier test texts are listed false failures.
+- After the third code review (BLOCK) and the owner's approval of one more corrective round (source prepared, not yet
+  tested or reviewed): proposal labels and kind nouns are only proposals, offers, quotes, quotations and bids
+  ("responses", "submissions", "applications" and a bare "Closing date:" are not); "will be" is not in the deadline
+  forms ("must be delivered" still is); "Price", "Past Performance", "Technical Approach" and volume lines are no longer templates;
+  headings and the volume-list opener count only as a whole statement; omission marks ("...", "[...]", "* * *") and
+  literal template slots ("<A>", "<D>", "<T>", "<Z>") are not recognized; a punctuation-only sentence is recognized
+  only as a table or separator rule; characters are checked on each raw line before whitespace is collapsed or
+  zero-width characters removed (so U+001F, Unicode spaces and zero-width characters are reviewed). The third
+  review's inputs are regression tests.
 
 ## 0.2.0rc6 (unreleased candidate, 2026-10-17; not published; 0.2.0rc5 and earlier were audited and are frozen)
 

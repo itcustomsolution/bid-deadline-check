@@ -1279,7 +1279,10 @@ def _norm_key(d: Deadline) -> tuple:
 # whose label names its kind, or, with no date, time or zone in it, one of the plain-sentence templates (PLAIN_FORMS).
 # There is no open vocabulary. No pattern here has a wildcard (test_r7_no_wildcards). The r6 checks still run; this
 # layer only adds review items.
-_KIND_PLURAL = r"(?:proposals|offers|bids|quotes|quotations|responses|submissions|applications)"
+# The words that name a proposal submission in a recognized form. "responses", "submissions", "applications" and a bare
+# "closing date" are not among them: they also name answers to questions, questionnaire returns and other events
+# (code review round 3).
+_KIND_PLURAL = r"(?:proposals|offers|bids|quotes|quotations)"
 # A section or list number leading a sentence ("L.2", "3.1.4", "(a)"): set aside before a fixed form is matched.
 LEAD_MARKER = re.compile(r"^\s*(?:[A-Z]\.\d{1,3}(?:\.\d{1,3}){0,3}\.?|\d{1,2}(?:\.\d{1,2}){0,3}\.|\(?(?:[a-z]|\d{1,2}|[ivx]{1,4})\))\s+", re.I)
 RULE_SENTENCES = [
@@ -1301,8 +1304,8 @@ ADDRESS = re.compile(r"(?<![A-Za-z0-9._%+@/-])(?:[A-Za-z._%+-]{1,64}@[A-Za-z-]{1
 # Fixed forms of a deadline sentence, with placeholders <D> date, <T> time, <Z> zone (<A> an address). The label must
 # name the deadline's kind; nothing else may remain.
 _KIND_LABEL = {
-    "proposal_due": r"(?:proposals?|offers?|quotes?|quotations?|bids?|responses?|submissions?|applications?)(?:\s+(?:due\s+date|due"
-                    r"|deadline|closing\s+date|submission\s+deadline))?|closing\s+date(?:\s+and\s+time)?",
+    "proposal_due": r"(?:proposals?|offers?|quotes?|quotations?|bids?)(?:\s+(?:due\s+date|due|deadline|closing\s+date"
+                    r"|submission\s+deadline))?",
     "questions_due": r"(?:questions?|inquiries|inquiry)(?:\s+(?:due\s+date|due|deadline))?",
     "site_visit": r"(?:site\s+visits?|pre-?(?:proposal|bid|quote)\s+conferences?)",
     "orals": r"(?:oral\s+presentations?|orals)",
@@ -1325,7 +1328,8 @@ def _deadline_forms(kind: str):
     lab = rf"(?:the\s+)?(?:{label})"
     return tuple(re.compile(p, re.I) for p in (
         rf"\|?\s*{lab}\s*(?::|\||-)?\s*(?:{_CUT}\s+)?{_WHEN}{_END}",
-        rf"(?:all\s+)?{lab}\s+(?:are|is|shall\s+be|must\s+be|will\s+be)\s+(?:due|submitted|received|delivered)"
+        # "will be" is not here: "Responses will be delivered ..." names the Government's answers (code review round 3)
+        rf"(?:all\s+)?{lab}\s+(?:are|is|shall\s+be|must\s+be)\s+(?:due|submitted|received|delivered)"
         rf"(?:\s+(?:electronically|via\s+email))?(?:\s+to\s+<A>)?\s+(?:{_CUT}\s+)?{_WHEN}{_END}",
         rf"(?:offerors|quoters|vendors|bidders|respondents)\s+(?:must|shall)\s+submit\s+(?:their\s+|all\s+)?{lab}"
         rf"(?:\s+(?:electronically|via\s+email))?(?:\s+to\s+<A>)?\s+(?:{_CUT}\s+)?{_WHEN}{_END}",
@@ -1343,12 +1347,20 @@ def _has_temporal(text: str) -> bool:
                 or ISO_TIME.search(text) or _unread_datelike(text))
 
 
-# Non-ASCII characters a recognized sentence may contain (typographic quotes and dashes, bullets, section sign, check
-# marks). Any other non-ASCII character, a look-alike or full-width letter, or an invisible format character, makes the
-# sentence unrecognized: the vocabulary check reads ASCII words only.
+# Non-ASCII characters a recognized sentence may contain (typographic quotes and dashes, bullets, ellipsis, section sign,
+# check marks; the ellipsis is still an omission mark below). Any other non-ASCII character, a look-alike or full-width
+# letter, a Unicode space or an invisible format character makes the sentence and its raw line unrecognized.
 ALLOWED_NON_ASCII = frozenset(chr(c) for c in (0x2018, 0x2019, 0x201C, 0x201D, 0x2013, 0x2014, 0x2022, 0x25CF, 0x25AA,
                                                0x2026, 0x00A7, 0x2713, 0x2714, 0x2612))
 ODD_BREAKS = frozenset(chr(c) for c in (0x0B, 0x0C, 0x1C, 0x1D, 0x1E, 0x85, 0x2028, 0x2029))
+
+
+def _odd_char(text: str) -> str | None:
+    """The first character of `text` that is neither printable ASCII, a tab, nor in ALLOWED_NON_ASCII: a control character
+    (including U+001F), a Unicode space (U+00A0, U+1680, U+3000, ...), a zero-width character or any other non-ASCII."""
+    return next((ch for ch in text if (ord(ch) > 126 and ch not in ALLOWED_NON_ASCII) or (ord(ch) < 32 and ch != "\t")), None)
+
+
 # A sentence that begins in lower case or with a joining or condition word continues or qualifies the one before it.
 CONTINUES_PREVIOUS = re.compile(r"or|and|nor|but|either|neither|plus|also|then|yet|so|except|unless|if", re.I)
 
@@ -1396,7 +1408,7 @@ _SEP = "(?:\\s*[-:" + chr(0x2013) + chr(0x2014) + "]?\\s*)"  # between a volume 
 _TITLE = r"(?:technical|price|cost|past\s+performance|management|staffing|small\s+business)"
 _SUBJ = (rf"(?:(?:the\s+)?(?:(?:technical|price|cost|management|past\s+performance|staffing)\s+)?(?:proposal|volume|response|narrative|approach)"
          rf"|{_VOL}(?:{_SEP}{_TITLE})?)")
-_KIND = r"(?:(?:all|the)\s+)?(?:proposals?|offers?|quotes?|quotations?|bids?|responses?)"
+_KIND = r"(?:(?:all|the)\s+)?(?:proposals?|offers?|quotes?|quotations?|bids?)"
 _SH = r"(?:shall|must)"
 _TO = r"(?:\s+to\s+<A>|\s+to\s+the\s+contracting\s+officer(?:\s+at\s+<A>)?)?"
 PLAIN_FORMS = [re.compile(p + r"\s*\.?", re.I) for p in (
@@ -1411,18 +1423,20 @@ PLAIN_FORMS = [re.compile(p + r"\s*\.?", re.I) for p in (
     rf"questions\s+{_SH}\s+be\s+submitted\s+(?:by\s+email|via\s+email|in\s+writing){_TO}",
     rf"questions\s+{_SH}\s+be\s+directed\s+to\s+the\s+contracting\s+officer(?:\s+at\s+<A>)?",
     r"the\s+offeror\s+shall\s+direct\s+all\s+questions\s+to\s+the\s+point\s+of\s+contact",
-    rf"all\s+(?:proposals|offers|quotes|bids|responses)\s+{_SH}\s+be\s+received\s+by\s+the\s+(?:proposal\s+)?(?:deadline|due\s+date|closing\s+date)",
+    rf"all\s+(?:proposals|offers|quotes|bids)\s+{_SH}\s+be\s+received\s+by\s+the\s+(?:proposal\s+)?(?:deadline|due\s+date|closing\s+date)",
     r"pages\s+shall\s+be\s+8\.5\s+x\s+11\s+inches(?:\s+with\s+1-inch\s+margins)?",
     r"text\s+shall\s+use\s+(?:\d{1,2}(?:\.5)?-point\s+)?(?:times\s+new\s+roman|arial|calibri)\s+font(?:\s*,\s*single-spaced)?",
     r"the\s+offeror\s+shall\s+include\s+its\s+UEI\s+and\s+CAGE\s+code\s+on\s+the\s+cover\s+page",
 )]
-# Complete by themselves, so they stay recognized when a list or heading line cuts the statement around them.
+# Headings and the volume-list opener, recognized only as a whole statement (never beside another sentence, so a heading
+# split off by ";" cannot scope a deadline). Headings that scope what follows to one part of the proposal (Price, Past
+# Performance, Technical Approach, a volume line) are not here: a document that has them needs review (code review
+# round 3).
 LIST_FORMS = [re.compile(p + r"\s*\.?", re.I) for p in (
     r"the\s+(?:proposal|offer|quote)\s+shall\s+consist\s+of\s+the\s+following\s+volumes\s*:",
-    rf"{_VOL}(?:{_SEP}{_TITLE})?",
     r"section\s+[a-m](?:" + _SEP + r"(?:instructions\s+to\s+offerors|evaluation\s+factors(?:\s+for\s+award)?))?",
     r"(?:instructions\s+to\s+offerors|evaluation\s+factors|table\s+of\s+contents|introduction|scope|submission\s+instructions"
-    r"|proposal\s+format|technical\s+approach|past\s+performance|price)",
+    r"|proposal\s+format)",
 )]
 
 
@@ -1436,10 +1450,11 @@ def _plain_form(sent: str):
     return _norm_ws(LEAD_MARKER.sub("", _norm_ws("".join(out)), count=1))
 
 
-def _plain_offender(sent: str) -> str | None:
-    """For a sentence with no date, time or zone: None if it matches a plain-sentence template whole."""
+def _plain_offender(sent: str, whole: bool) -> str | None:
+    """For a sentence with no date, time or zone: None if it matches a plain-sentence template whole. Headings and the
+    volume-list opener count only when the sentence is the whole statement (`whole`)."""
     form = _plain_form(sent)
-    for rx in PLAIN_FORMS + LIST_FORMS:
+    for rx in PLAIN_FORMS + (LIST_FORMS if whole else []):
         m = rx.fullmatch(form)
         if m and ("n" not in m.groupdict() or _num(m.group("n"))):
             return None
@@ -1477,18 +1492,30 @@ def _deadline_offender(sent: str, a: int, b: int, d: Deadline) -> str | None:
     return f"not a supported deadline form: {form[:80]}"
 
 
+# Marks of omitted or struck text ("[...]", an ellipsis, "* * *") and literal template slots ("<A>", "<D>", "<T>", "<Z>"):
+# a sentence holding one is not recognized (code review round 3). A sentence of punctuation only is recognized only if
+# it is a table or separator rule ("---", "|---|---|").
+OMISSION = re.compile(r"\.\s?\.\s?\.|" + chr(0x2026) + r"|\*\s*\*\s*\*")
+PLACEHOLDER = re.compile(r"<\s*[ADTZ]\s*>", re.I)
+RULE_LINE = re.compile(r"[\s|:+=_-]*")
+
+
 # "All times in this solicitation are Eastern Time.": r6 reports it if it conflicts with a deadline's zone.
 ZONE_FORM = re.compile(r"(?:all\s+)?(?:dates\s+and\s+)?times\s+(?:(?:in|listed\s+in|stated\s+in|shown\s+in)\s+this\s+"
                        r"(?:solicitation|RFP|RFQ|IFB|document|notice)\s+)?(?:are|is)\s+(?:in\s+)?<Z>\s*\.?", re.I)
 
 
-def _offender(sent: str, own: list, proposal_times: set) -> str | None:
-    """None if the sentence is recognized; otherwise what is not (a word, a digit or a form)."""
-    if (odd := next((ch for ch in sent if (ord(ch) > 126 and ch not in ALLOWED_NON_ASCII) or (ord(ch) < 32 and ch != "\t")), None)) is not None:
+def _offender(sent: str, own: list, proposal_times: set, whole: bool = False) -> str | None:
+    """None if the sentence is recognized; otherwise what is not (a character, a marker or the form compared)."""
+    if (odd := _odd_char(sent)) is not None:
         return f"a non-ASCII, control or invisible character U+{ord(odd):04X}"
+    if PLACEHOLDER.search(sent):
+        return "a literal template slot"
+    if OMISSION.search(sent):
+        return "a mark of omitted or struck text"
     body = LEAD_MARKER.sub("", sent.strip(), count=1)
     if not re.search(r"[A-Za-z0-9]", body):
-        return None
+        return None if RULE_LINE.fullmatch(body) else "punctuation that is not a table or separator rule"
     if any(rx.fullmatch(body) for _, rx in STANDARD_CLAUSES) or any(rx.fullmatch(body) for rx in RULE_SENTENCES):
         return None
     if (late := LATE_RESTATE.fullmatch(body)):
@@ -1509,7 +1536,7 @@ def _offender(sent: str, own: list, proposal_times: set) -> str | None:
         return _deadline_offender(sent, *own[0])
     if continues:
         return "begins in lower case or with a joining or condition word"
-    return _plain_offender(sent)
+    return _plain_offender(sent, whole)
 
 
 def _unrecognized(st: _Statement, ds: list, spans: list) -> list[dict]:
@@ -1521,15 +1548,16 @@ def _unrecognized(st: _Statement, ds: list, spans: list) -> list[dict]:
         start, pos = pos, pos + len(sent)
         inside = [(a - start, b - start, d) for d, (a, b) in zip(ds, spans) if start <= a and b <= pos]
         cut = ((st.forced or st.open_start) and start == 0) or ((st.forced or st.open_end) and pos == len(st.text))
+        whole = sent.strip() == st.text.strip()
         standard = any(rx.fullmatch(LEAD_MARKER.sub("", sent.strip(), count=1)) for _, rx in STANDARD_CLAUSES)
-        if cut and sent.strip() and (st.forced or not any(rx.fullmatch(_plain_form(sent)) for rx in LIST_FORMS)):
+        if cut and sent.strip() and (st.forced or not whole or not any(rx.fullmatch(_plain_form(sent)) for rx in LIST_FORMS)):
             why = "cut by a statement bound or an interrupting list or heading line"
         elif any(not _complete(d) for *_, d in inside):
             why = "a deadline that is not complete"
         elif after_standard and sent.strip(" \t.;,").lower() == "or":
             why = None  # the "; or" that ends a standard clause's paragraph, split off at the ";"
         else:
-            why = _offender(sent, inside, proposal_times)
+            why = _offender(sent, inside, proposal_times, whole)
         after_standard = standard
         if why:
             lead = start + len(sent) - len(sent.lstrip())
@@ -1740,6 +1768,13 @@ def analyze(text: str) -> Report:
             revisions.append({"line": zl, "end_line": ze, "reason": "zone_statement", "clause": ztext})  # holds all
     for st_, got_, spans_ in pending:  # r7 allow-list, after the zone pass so a deadline's completeness includes it
         revisions += _unrecognized(st_, got_, spans_)
+    # The raw lines, before r6 removes zero-width characters and turns other whitespace into spaces: any character outside
+    # the accepted set is reviewed on its line (code review round 3). Line numbers match r6's: zero-width characters are
+    # not line breaks.
+    for i, raw in enumerate(text.splitlines(), 1):
+        if (odd := _odd_char(raw)) is not None:
+            revisions.append({"line": i, "end_line": i, "reason": "not_recognized", "clause": _norm_ws(raw)[:MAX_REVIEW_TEXT],
+                              "detail": f"a non-ASCII, control or invisible character U+{ord(odd):04X} in the raw line"})
     # Line separators other than a newline or carriage return ("\x0b", "\x0c", "\x1c" to "\x1e", U+0085, U+2028, U+2029)
     # are line breaks to splitlines(), so the character check above never sees them; the line they end is reviewed.
     for i, piece in enumerate(ZERO_WIDTH.sub("", text).splitlines(keepends=True), 1):

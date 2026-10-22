@@ -34,8 +34,9 @@ bid-deadline-check solicitation.txt -f md
 bid-deadline-check solicitation.txt -f json
 ```
 
-Example output (from `tests/fixtures/rfp_sample.txt`, a synthetic RFP; most sentences of a real solicitation are
-outside the recognized forms, so NEEDS REVIEW is the normal result):
+Abridged example output (from `tests/fixtures/rfp_sample.txt`, a synthetic RFP; most sentences of a real solicitation
+are outside the recognized forms, so NEEDS REVIEW is the normal result). It was produced by an earlier 0.2.0rc7 build;
+the counts and `detail` texts of the current candidate differ and are to be regenerated with the command above:
 
 ```
 OUTCOME: NEEDS REVIEW (8 sentence(s) to review, 11 warning(s))
@@ -61,7 +62,8 @@ Every run reports an outcome: **READ** or **NEEDS REVIEW** (`outcome` in JSON, t
 
 Since 0.2.0rc7, READ is **allow-list based**: every sentence of the input must be positively recognized (next
 section), and in addition none of the checks below may fire. An unrecognized sentence is a review item with reason
-`not_recognized`, its exact text and a `detail` naming the first word, digit or form that is not recognized, and it
+`not_recognized`, its exact text and a `detail` saying what is not recognized (for most sentences, the sentence as it
+was compared with the templates; otherwise the character, marker or deadline problem found), and it
 holds **every** deadline, because the tool cannot tell which deadline it changes. The cost is deliberate: almost any
 real solicitation, and most ordinary prose, needs review. READ is meant for short, plainly written deadline notices in
 the supported forms; on anything else, NEEDS REVIEW is the expected result and says only that a person must read it.
@@ -72,28 +74,37 @@ A sentence is recognized only if one of these holds:
 
 - it is, whole, an unaltered standard clause (below), the SF-30 Block 11 line checked "[X] is not extended", or one of
   the fixed rule sentences "Late (Oral, Verbal, Faxed, Facsimile, Telephonic, Telephone) proposals (offers, bids,
-  quotes, quotations, responses, submissions, applications) will (shall) not be accepted (considered).", "No proposals
+  quotes, quotations) will (shall) not be accepted (considered).", "No proposals
   will be accepted by fax (facsimile, telephone).", "The Government reserves the right to cancel this solicitation."
   and "The Government may cancel this solicitation at any time.";
-- it is a late-receipt rule, whole, whose time and zone equal a complete proposal deadline's ("proposals received
-  after 5:00 PM ET will be rejected");
+- it is a late-receipt rule, whole, whose time equals that of a complete proposal deadline in the same statement,
+  and whose zone, when it states one, equals that deadline's zone ("Proposals due November 5, 2026 at 5:00 PM ET; proposals received after 5:00 PM ET will be rejected."; on
+  a line of its own it needs review);
 - it holds exactly one complete deadline (date, time and zone, nothing flagged) and, with that date, time and zone in
-  place, is one of these forms, with a label that names that deadline's own kind: "Proposals due <when>.", "Proposal
-  due date: <when>", "Closing date: <when>", "Proposals are (must be, shall be, will be) due (submitted, received,
-  delivered) [electronically | via email] [to <address>] [no later than | not later than | NLT | on or before | by |
-  on] <when>.", "Offerors must (shall) submit proposals ... <when>.", a table row "| Proposals due | <date> | <time
-  zone> |", a capitals label above a date line, and "This RFQ (RFP, IFB, solicitation) closes <when>." A bare "Due
-  date:" label is not one of them: it says nothing about which deadline it is. Here <when> is the date with its time and zone in the usual orders (", at, @, |, -, /"
+  place, is one of these forms, with a label that names that deadline's own kind: "<label> <when>." or "<label>:
+  <when>" (also with "|" or "-" after the label), "<label> are (is, must be, shall be) due (submitted, received, delivered)
+  [electronically | via email] [to <address>] [no later than | not later than | NLT | on or before | by | on] <when>.",
+  "Offerors (quoters, vendors, bidders, respondents) must (shall) submit [their | all] <label> ... <when>.", a table
+  row "| <label> | <date> | <time zone> |", a capitals label above a date line, and, for the proposal deadline, "[This]
+  RFQ (RFP, IFB, solicitation) closes [on] <when>." For the proposal deadline <label> is proposal(s), offer(s),
+  quote(s), quotation(s) or bid(s), optionally followed by "due date", "due", "deadline", "closing date" or "submission
+  deadline", with an optional "the"; for questions, question(s), inquiry or inquiries; for the other kinds, their own
+  names (site visit, pre-proposal conference, oral presentations, registration, notice of intent, final proposal
+  revisions, BAFO, FPR, revised proposals). "Responses", "submissions", "applications" and a bare "Closing date:" or
+  "Due date:" are not labels: they also name answers to questions, questionnaire returns and other events. Here <when> is the date with its time and zone in the usual orders (", at, @, |, -, /"
   between them; "hrs", "hours", "sharp" or "prevailing" before the zone; the zone repeated in parentheses; an ISO 8601
-  date-time). Nothing else may remain in the sentence: no second date or time, no other zone, no "or", no lot;
+  date-time). Nothing else may remain in the sentence: no second date or time, no other zone, no "or", no lot. A
+  deadline sentence is not subject to the lower-case and joining-word rule below (its form is fixed whole, and no form
+  begins with a joining word);
 - it is a zone statement "All times (in this solicitation) are <zone>." (r6 compares it with every deadline's zone);
 - it has no date, time, zone or date-like value, does not begin in lower case or with a joining or condition word
   ("or", "and", "but", "if", "unless", ...), and, with a leading list marker set aside, matches one of these templates
   whole (case aside; `core.PLAIN_FORMS` and `core.LIST_FORMS`):
   - page limits: "<subject> shall (must) not exceed <n> pages.", "<subject> is (are) limited to <n> pages.",
     "<subject> page limit: <n> pages", where the subject is a proposal, volume, response, narrative or approach
-    (optionally technical, price, cost, management, past performance or staffing) or "Volume I" to "Volume X" with an
-    optional title, and <n> is a number up to 999 or a number word up to fifty with an optional "(digits)";
+    (optionally technical, price, cost, management, past performance or staffing) or "Volume I" to "Volume X" (or 1
+    to 10) with an optional title, and <n> is a number of 1 to 3 digits, or one of the words one to twelve, fifteen,
+    twenty, twenty-five, thirty, forty and fifty, with an optional "(1 to 3 digits)";
   - submission: "<proposals> shall (must) be submitted electronically (by email, via email) [to <address> | to the
     contracting officer [at <address>]].", "... be submitted in PDF format (as a single PDF file) [by email].", "... be
     submitted through <address>.", "Submit <proposals> [by email] to <address>.", "The technical (price, cost,
@@ -104,12 +115,14 @@ A sentence is recognized only if one of these holds:
     <address>].", "The offeror shall direct all questions to the point of contact.";
   - format: "Pages shall be 8.5 x 11 inches [with 1-inch margins].", "Text shall use [12-point] Times New Roman (Arial,
     Calibri) font[, single-spaced].", and "The offeror shall include its UEI and CAGE code on the cover page.";
-  - list lines and headings: "The proposal shall consist of the following volumes:", "Volume I - Technical" and
-    similar, "Section A" to "Section M" (optionally "- Instructions to Offerors" or "- Evaluation Factors [for
-    Award]"), "Instructions to Offerors", "Evaluation Factors", "Table of Contents", "Introduction", "Scope",
-    "Submission Instructions", "Proposal Format", "Technical Approach", "Past Performance", "Price".
+  - headings and the volume-list opener, only as a whole statement (a line of their own, never beside another
+    sentence): "The proposal (offer, quote) shall consist of the following volumes:", "Section A" to "Section M"
+    (optionally "- Instructions to Offerors" or "- Evaluation Factors [for Award]"), "Instructions to Offerors",
+    "Evaluation Factors", "Table of Contents", "Introduction", "Scope", "Submission Instructions", "Proposal Format".
+    Headings that limit what follows to one part of the proposal ("Price", "Past Performance", "Technical Approach",
+    "Volume II", "Volume II - Price") are not templates: a document that has one needs review.
 
-  Here <proposals> is proposals, offers, quotes, quotations, bids or responses (with an optional "all" or "the"), and
+  Here <proposals> is proposals, offers, quotes, quotations or bids (with an optional "all" or "the"), and
   <address> an email address or a bare host name (an optional "https://" or "www.", a name ending in .gov, .mil,
   .com, .org, .net or .us, and an optional "/"), with no digit, no path or query, and none of these stems anywhere
   inside it: time words (due, date, late, early, after, before, until, next, last, week, day, month, year, hour, time,
@@ -117,17 +130,23 @@ A sentence is recognized only if one of these holds:
   pause, tbd, not, no, only, except, if, ...), event words (oral, present, visit, conferen, meet, award, notice, brief,
   ...) and month abbreviations (`core.ADDRESS_STEMS` has the full list). A volume or section and its title may be
   separated by "-", ":", an en dash or an em dash.
+- it is punctuation only and a table or separator rule ("---", "|---|---|"); other punctuation-only sentences
+  ("( )", "* * *") need review.
 
 There is no open vocabulary: the two code reviews of an earlier vocabulary-based version showed that ordinary words
 could still move or qualify a submission ("Proposals shall be submitted with the questions.", "Proposals shall be
 submitted at the presentation."), so the owner chose this closed list. A template with any word changed or added needs
-review. Also unrecognized: any non-ASCII character other than U+2018, U+2019, U+201C, U+201D (typographic quotes),
-U+2013, U+2014 (en and em dash), U+2022, U+25CF, U+25AA (bullets), U+2026 (ellipsis), U+00A7 (section sign), U+2713,
-U+2714 and U+2612 (check marks), which covers other scripts, full-width and look-alike letters and invisible format
-characters; an ASCII control character other than tab; a line separator other than a newline or carriage return
+review. Also unrecognized: a mark of omitted or struck text ("...", an ellipsis character, "[...]", "* * *") or a
+literal template slot ("<A>", "<D>", "<T>", "<Z>") anywhere in a sentence; and, checked on each raw line before any
+whitespace is collapsed or zero-width character removed, any non-ASCII character other than U+2018, U+2019, U+201C,
+U+201D (typographic quotes), U+2013, U+2014 (en and em dash), U+2022, U+25CF, U+25AA (bullets), U+2026 (ellipsis,
+itself an omission mark), U+00A7 (section sign), U+2713, U+2714 and U+2612 (check marks), which covers other scripts,
+full-width and look-alike letters, Unicode spaces (U+00A0, U+1680, U+3000, ...), zero-width characters (U+200B to
+U+200D, U+2060, a U+FEFF byte-order mark) and invisible format characters; an ASCII control character other than tab
+(U+0000 to U+001F, including U+001F); a line separator other than a newline or carriage return
 (`\x0b`, `\x0c`, `\x1c` to `\x1e`, U+0085, U+2028, U+2029: the line it ends is reviewed); a 12-hour clock time without AM or PM in a deadline ("5:00 ET"); and a sentence
-at the edge of a statement cut by a size bound or by an interrupting list or heading line, unless it is one of the list
-lines and headings above. After an unaltered standard clause that ends "; or", that "or" alone is recognized.
+at the edge of a statement cut by a size bound or by an interrupting list or heading line, unless it is a heading or
+the volume-list opener standing as a whole statement and the cut is not a size bound. After an unaltered standard clause that ends "; or", that "or" alone is recognized.
 
 The checks that still give their own reasons:
 
@@ -171,7 +190,7 @@ these as "NOT ACTIONABLE AS STATED"; the checklist (`md`, `csv`) lists the revie
 | `unread_date_value` | contains a date-like value this tool does not read ("2026.11.5", "20261112", "2026 11 12", "Friday", "tomorrow", "next week", "Thanksgiving", "end of month") |
 | `zone_statement` | sets, changes or redefines the zone for all times ("All times are Central Time, not Eastern Time", "Times in this RFP are Central Time", "deadlines are in Central Time", "All times are changed from Eastern Time to Central Time", "Time zone for all deadlines: Mountain", "\"ET\" in this RFP means Central Time") in a way that conflicts with a deadline's zone or rules one out. A deadline gets one conflict code however many statements there are, and at most 50 statements are listed one by one |
 | `unsupported_date_form` | (any line) holds one of the screened malformed forms listed below |
-| `not_recognized` | (any sentence, since 0.2.0rc7) is not one of the recognized forms above; `detail` names the first word, digit or form that is not; every deadline is held, and each deadline carries one `not_recognized:N` code after its other reasons |
+| `not_recognized` | (any sentence, since 0.2.0rc7) is not one of the recognized forms above; `detail` says what is not recognized (usually the sentence as compared with the templates); every deadline is held, and each deadline carries one `not_recognized:N` code after its other reasons |
 
 What names a deadline: the deadline words "due", "deadline", "closing", "close date", "cut-off", "no later than",
 "not later than", "NLT", "on or before"; "receipt of offers" (proposals, bids, quotes, responses); "time" or "date"

@@ -630,11 +630,19 @@
    "not_recognized": [
     [
      6,
+     "cut by a statement bound or an interrupting list or heading line"
+    ],
+    [
+     6,
      "not a supported sentence form: 1."
     ],
     [
      7,
      "cut by a statement bound or an interrupting list or heading line"
+    ],
+    [
+     7,
+     "not a supported sentence form: Scope"
     ],
     [
      9,
@@ -646,6 +654,10 @@
    "nodeid": "tests/test_reaudit.py::test_kr2_03_a_heading_and_a_blank_line_do_not_cut_the_next_requirement[Technical Approach\\n\\nThe offeror shall describe its approach.]",
    "not_recognized": [
     [
+     4,
+     "not a supported sentence form: Technical Approach"
+    ],
+    [
      6,
      "not a supported sentence form: The offeror shall describe its approach."
     ]
@@ -654,6 +666,10 @@
   {
    "nodeid": "tests/test_reaudit.py::test_kr2_03_a_heading_and_a_blank_line_do_not_cut_the_next_requirement[Volume I - Technical\\n\\nThe offeror shall describe its approach.]",
    "not_recognized": [
+    [
+     4,
+     "not a supported sentence form: Volume I - Technical"
+    ],
     [
      6,
      "not a supported sentence form: The offeror shall describe its approach."

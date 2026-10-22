@@ -252,7 +252,6 @@ def test_r7_only_or_follows_a_standard_clause():
     "Proposals must be submitted in PDF format by email.",
     "Offers shall be submitted through piee.eb.mil.",
     "Proposals must be submitted electronically to the contracting officer at co@example.gov.",
-    "Volume III " + chr(0x2013) + " Price",
     "Submit quotes by email to co@example.gov.",
     "Questions must be submitted in writing to the contracting officer at co@example.gov.",
     "Questions shall be directed to the contracting officer.",
@@ -261,7 +260,6 @@ def test_r7_only_or_follows_a_standard_clause():
     "Text shall use 12-point Times New Roman font, single-spaced.",
     "The offeror shall include its UEI and CAGE code on the cover page.",
     "The proposal shall consist of the following volumes:",  # with a list after it, r6 flags the open requirement
-    "Volume I - Technical\nVolume II - Price",
     "Section L - Instructions to Offerors",
 ])
 def test_r7_each_plain_template_reads(text):
@@ -281,6 +279,62 @@ def test_r7_an_altered_template_needs_review(text):
     assert held_on_probe(OLD + text)
 
 
+# Code review round 3 (kofi, BLOCK on 32b64e8): each read READ there. Generic labels and scoping headings let another
+# event's deadline, or one volume's, read as the proposal deadline; a heading split off by ";" scoped the deadline;
+# omission marks and literal template slots read cleanly; characters were checked only after r6 normalized them.
+UNSAFE_CR3 = [
+    "Questions shall be directed to the contracting officer.\nResponses will be delivered via email by October 8, 2026 at 5:00 PM ET.",
+    "Questions shall be submitted by email to the contracting officer.\nSubmissions due October 1, 2026 at 10:00 AM ET.",
+    "Past Performance\n\nResponses due November 1, 2026 at 5:00 PM ET.",
+    "PAST PERFORMANCE\nResponses due November 1, 2026 at 5:00 PM ET.",
+    "Price\n\nClosing date: November 15, 2026 at 5:00 PM ET.",
+    "Volume II - Price\n\nProposals due November 15, 2026 at 5:00 PM ET.",
+    "Proposals due November 5, 2026 at 5:00 PM ET; Volume II - Price.",
+    OLD + "[...]",
+    OLD + "[" + _u(0x2026) + "]",
+    OLD + "* * *",
+    "Proposals must be received to <A> by November 5, 2026 at 5:00 PM ET.",
+    OLD + "Proposals shall be submitted" + _u(0x1F) + "electronically.",
+    OLD + "Proposals shall be submitted" + _u(0xA0) + "electronically.",
+    OLD + "Proposals shall be submitted" + _u(0x1680) + "electronically.",
+    OLD + "Proposals shall be submitted" + _u(0x3000) + "electronically.",
+    OLD + "Proposals shall be submitted" + _u(0x200B) + " electronically.",
+    # the builder's additions in the same classes
+    "Technical Approach\n\nProposals due November 15, 2026 at 5:00 PM ET.",
+    "Volume I\n\nProposals due November 15, 2026 at 5:00 PM ET.",
+    "Section L; Proposals due November 5, 2026 at 5:00 PM ET.",
+    "Applications due November 5, 2026 at 5:00 PM ET.",
+    "Proposals will be delivered by November 5, 2026 at 5:00 PM ET.",
+    "Proposals due November 5, 2026 at 5:00 PM ET.\nResponses shall be submitted by email to co@example.gov.",
+    "Proposals due November 5, 2026 at 5:00 PM ET.\n( )",
+]
+
+
+@pytest.mark.parametrize("text", UNSAFE_CR3)
+def test_r7_code_review_round3_inputs_hold_every_deadline_on_their_own_line(text):
+    # NOT RUN when written (source-only preparation of round 4): expected to pass on the round-4 source, fail on 32b64e8.
+    assert held_on_probe(text)
+
+
+SUPPORTED_CR3 = [  # benign controls next to the round-3 changes; each must stay READ after the base text
+    "Offers due November 5, 2026 at 5:00 PM ET.",
+    "Proposal closing date: November 5, 2026 at 5:00 PM ET.",
+    "Quotes must be received by November 5, 2026 at 5:00 PM ET.",
+    "This RFQ closes November 5, 2026 at 5:00 PM ET.",
+    "Section L - Instructions to Offerors\n\nProposals due November 5, 2026 at 5:00 PM ET.",
+    "Proposals due November 5, 2026 at 5:00 PM ET.\n\n---",
+    "Proposals due November 5, 2026 at 5:00 PM ET.\nProposals shall be submitted electronically to the contracting officer.",
+    "Proposals due November 5, 2026 at 5:00 PM ET.\nVolume I Technical shall not exceed twenty (20) pages.",
+]
+
+
+@pytest.mark.parametrize("text", SUPPORTED_CR3)
+def test_r7_round3_controls_still_read(text):
+    # NOT RUN when written: expected rc 0 on the round-4 source.
+    rc, rep = strict_json(BASE + text)
+    assert rc == 0, rep["needs_review"]
+
+
 def _strip(src: str) -> str:
     """The pattern source without escapes and character classes, where a wildcard would show."""
     src = re.sub(r"\\.", "", src)
@@ -289,6 +343,7 @@ def _strip(src: str) -> str:
 
 def test_r7_no_wildcards_in_recognizing_patterns():
     pats = [core.ADDRESS, core.ADDRESS_STEMS, *core.PLAIN_FORMS, *core.LIST_FORMS, core.LATE_RESTATE, core.ZONE_FORM,
+            core.OMISSION, core.PLACEHOLDER, core.RULE_LINE,
             *core.RULE_SENTENCES, *(rx for k in core._KIND_LABEL for rx in core._deadline_forms(k))]
     for rx in pats:
         src = rx.pattern
