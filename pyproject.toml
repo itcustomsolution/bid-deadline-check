@@ -1,15 +1,15 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]  # PEP 639 license metadata (license = "MIT", license-files)
 build-backend = "hatchling.build"
 
 [project]
 name = "bid-deadline-check"
-version = "0.1.0"
+version = "0.2.0"
 description = "Extract deadlines (with timezone), page limits, forms and a compliance checklist from government solicitations. Rule-based, local, no LLM."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [{ name = "IT Custom Solution" }]
 keywords = ["govcon", "rfp", "solicitation", "proposal", "compliance", "deadline", "sam.gov"]
 classifiers = [
@@ -21,8 +21,8 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-pdf = ["pypdf>=6.19"]
-dev = ["pytest>=7", "pypdf>=6.19"]
+pdf = ["pypdf>=6.21.1"]
+dev = ["pytest>=8", "pypdf>=6.21.1"]
 
 [project.scripts]
 bid-deadline-check = "bid_deadline_check.cli:main"
