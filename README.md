@@ -1,5 +1,19 @@
 # bid-deadline-check
 
+A local review aid for government solicitation text and PDFs. Extract deadlines and requirement references, then check them against the source before acting.
+
+**Most real solicitations return NEEDS REVIEW.** READ means every sentence fits this tool's narrow rules and no defined warning fired; it is not a finding that a bid is compliant, complete or safe to submit.
+
+## Release and verification
+
+As of **26 October 2026**, [v0.2.0 on GitHub](https://github.com/itcustomsolution/bid-deadline-check/releases/tag/v0.2.0) and [0.2.0 on PyPI](https://pypi.org/project/bid-deadline-check/0.2.0/) are published under the [MIT license](LICENSE). The [release-preparation test run](https://github.com/itcustomsolution/bid-deadline-check/actions/runs/39725000148) passed on its recorded revision. See the [changelog](CHANGELOG.md) and [development commands](#development) for reproducible local checks.
+
+The published release notes report that a held-out synthetic set sent **all 94 clean excerpts** for review while accepting **none of 106 labeled-unsafe excerpts** cleanly. That describes one test set, not a general accuracy guarantee. Plan for human review rather than unattended deadline decisions.
+
+Requires Python 3.10+; use a maintained Python release for a new environment. Text processing has no runtime dependencies. PDF input requires the optional `pdf` extra and a text layer; scanned pages need OCR first.
+
+## What it extracts
+
 Read a government solicitation (RFP, RFQ, IFB; PDF or text) and get back:
 
 - **Deadlines** with date, time and **timezone exactly as written**: questions due, proposal due,
@@ -26,7 +40,9 @@ It is deterministic: regex and rules only. No LLM, no network, nothing leaves yo
 ## Quickstart
 
 ```bash
-pip install "bid-deadline-check[pdf]"
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install "bid-deadline-check[pdf]==0.2.0"
 
 bid-deadline-check solicitation.pdf
 bid-deadline-check solicitation.pdf -f csv > compliance-matrix.csv
@@ -56,6 +72,19 @@ PAGE LIMITS
   Volume II Past Performance: 10 pages  (line 14)
 ...
 ```
+
+## Try a synthetic text example
+
+After installation, run these commands in a scratch directory:
+
+```sh
+printf '%s\n' 'Questions due October 1, 2026 at 10:00 AM ET.' 'Technical proposal must not exceed 20 pages.' 'Proposals due November 5, 2026 at 5:00 PM ET.' > sample-notice.txt
+bid-deadline-check sample-notice.txt --strict -f json
+printf '%s\n' 'The deadline may change; confirm the latest amendment.' >> sample-notice.txt
+bid-deadline-check sample-notice.txt --strict -f json
+```
+
+The first input uses supported forms and includes the questions deadline and page limit needed to avoid missing-information warnings: expect READ (`"outcome": "read"` in JSON) and exit 0. The added sentence requires interpretation: expect NEEDS REVIEW (`"outcome": "needs_review"`) and exit 2. Both inputs are fictional. Verify real dates, zones and amendments with the original source; this tool does not watch for changes.
 
 ## What `--strict` means
 
