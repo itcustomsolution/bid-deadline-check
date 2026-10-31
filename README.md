@@ -388,6 +388,12 @@ short or is in an unsupported form, such as `UTC+05:30:15`), `zone_invalid`, `zo
   reads it.
 - Out of scope: scoring, bid/no-bid, writing proposal content.
 
+## Using the checklist in a workflow
+
+Assign a reviewer to compare the extracted items with the complete solicitation and amendments, record unresolved questions, and own the submission decision. Running this utility does not establish an accepted bid process, monitor source changes or demonstrate compliance.
+
+For a defined technology work package or proposed teaming role, see ITC's [pursuit and teaming scope](https://itcustomsolution.com/practices/bid-pursuit-teaming). Engagement responsibilities and required evidence are agreed separately; this open-source review aid remains usable on its own.
+
 ## Development
 
 The pull-request workflow is configured for Python 3.10, 3.12 and 3.14 on Linux, plus Python 3.14 on
