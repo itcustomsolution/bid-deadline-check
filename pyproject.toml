@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bid-deadline-check"
-version = "0.2.1"
+version = "0.2.2"
 description = "Local review aid for solicitation deadlines and requirements. Rule-based extraction with explicit human-review flags."
 readme = "README.md"
 license = "MIT"

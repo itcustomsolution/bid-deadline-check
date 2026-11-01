@@ -6,7 +6,7 @@ A local review aid for government solicitation text and PDFs. Extract deadlines 
 
 ## Release and verification
 
-As of **26 October 2026**, [v0.2.0 on GitHub](https://github.com/itcustomsolution/bid-deadline-check/releases/tag/v0.2.0) and [0.2.0 on PyPI](https://pypi.org/project/bid-deadline-check/0.2.0/) are published under the [MIT license](LICENSE). The [release-preparation test run](https://github.com/itcustomsolution/bid-deadline-check/actions/runs/39725000148) passed on its recorded revision. See the [changelog](CHANGELOG.md) and [development commands](#development) for reproducible local checks.
+Published packages are on [PyPI](https://pypi.org/project/bid-deadline-check/), and release notes are on [GitHub](https://github.com/itcustomsolution/bid-deadline-check/releases). The source tree may contain unreleased changes. The tool is [MIT licensed](https://github.com/itcustomsolution/bid-deadline-check/blob/main/LICENSE). The [release-preparation test run](https://github.com/itcustomsolution/bid-deadline-check/actions/runs/39725000148) passed on its recorded revision. See the [changelog](https://github.com/itcustomsolution/bid-deadline-check/blob/main/CHANGELOG.md) and [development commands](#development) for reproducible local checks.
 
 The published release notes report that a held-out synthetic set sent **all 94 clean excerpts** for review while accepting **none of 106 labeled-unsafe excerpts** cleanly. That describes one test set, not a general accuracy guarantee. Plan for human review rather than unattended deadline decisions.
 
@@ -42,7 +42,7 @@ It is deterministic: regex and rules only. No LLM, no network, nothing leaves yo
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install "bid-deadline-check[pdf]==0.2.0"
+python -m pip install --upgrade "bid-deadline-check[pdf]"
 
 bid-deadline-check solicitation.pdf
 bid-deadline-check solicitation.pdf -f csv > compliance-matrix.csv
@@ -408,6 +408,19 @@ pytest
 ```
 
 Fixtures are synthetic. Please don't add real solicitations that carry controlled or proprietary markings.
+
+## Package-page checks
+
+Before a release, build and render the actual wheel description with Python 3.11+:
+
+```sh
+python -m pip install --require-hashes -r requirements/build.txt -r requirements/docs.txt
+python -m unittest discover -s scripts -p 'test_package_page.py' -v
+python -m build --no-isolation
+python scripts/check_package_page.py dist/*.whl --html package-description.html --online
+```
+
+Use a clean `dist/` directory containing only the candidate wheel. The CI package-page job checks the wheel/README match, Markdown rendering, anchors, absolute documentation URLs, repository file targets and installation pins. The `--online` release check also fetches every external link and fails if a destination cannot be verified. Review the saved HTML and run the README examples against the actual installed published package before uploading; repeat the link and version checks on the live PyPI page afterward. These checks require no publishing credential. Historical test results and example-output attribution should stay tied to their original version.
 
 ## License
 

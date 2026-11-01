@@ -1,6 +1,12 @@
 # Changelog
 
-## [0.2.1] - Prepared for release
+## [0.2.2] - 2026-11-01
+
+- Use current-release links and installation commands without stale version pins.
+- Make README documentation links work on both PyPI and GitHub.
+- Check the rendered wheel description, documentation links and installation pins before release; no runtime behavior or dependency changes.
+
+## [0.2.1] - 2026-11-01
 
 - Refresh package-page documentation and project links to match the public ITC documentation.
 - Clarify the tool's scope and the separately scoped services inquiry path; no runtime behavior changes.
